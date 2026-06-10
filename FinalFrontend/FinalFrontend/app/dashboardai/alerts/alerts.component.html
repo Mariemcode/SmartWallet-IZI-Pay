@@ -1,0 +1,111 @@
+<div class="page">
+
+    <!-- ═══════════════ HEADER ═══════════════ -->
+    <div class="page-header">
+        <div class="header-left">
+            <span class="header-tag">
+                <i class="bi bi-cpu"></i> MOTEUR IA
+            </span>
+            <h1><i class="bi bi-exclamation-triangle-fill"></i> Alertes <span class="accent">IA</span></h1>
+            <p class="subtitle">
+                Détection d'anomalies (Z-Score + Isolation Forest) sur les transactions utilisateurs.
+                Source : Module 6 FastAPI <code>/recommendations/alerts/all</code>.
+            </p>
+        </div>
+        <div class="header-right">
+            <select class="filter-select" [(ngModel)]="filterSeverity" (change)="filter()">
+                <option value="">Toutes sévérités</option>
+                <option value="CRITICAL">🚨 Critique</option>
+                <option value="HIGH">⚠️ Haute</option>
+                <option value="MEDIUM">ℹ️ Moyenne</option>
+                <option value="LOW">💬 Basse</option>
+            </select>
+            <button class="btn-refresh" (click)="loadAlerts()" [disabled]="alertsLoading">
+                <i class="bi bi-arrow-clockwise" [class.spin]="alertsLoading"></i>
+                Actualiser
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══════════════ KPI BAR ═══════════════ -->
+    <section class="kpi-row" *ngIf="alertsList.length > 0">
+        <div class="kpi">
+            <div class="kpi-label">Total (page)</div>
+            <div class="kpi-value">{{ alertsList.length }}</div>
+            <div class="kpi-hint">sur {{ alertsTotal }} total</div>
+        </div>
+        <div class="kpi kpi-critical" *ngIf="countBySeverity['CRITICAL']">
+            <div class="kpi-label">Critique</div>
+            <div class="kpi-value">{{ countBySeverity['CRITICAL'] }}</div>
+        </div>
+        <div class="kpi kpi-high" *ngIf="countBySeverity['HIGH']">
+            <div class="kpi-label">Haute</div>
+            <div class="kpi-value">{{ countBySeverity['HIGH'] }}</div>
+        </div>
+        <div class="kpi kpi-medium" *ngIf="countBySeverity['MEDIUM']">
+            <div class="kpi-label">Moyenne</div>
+            <div class="kpi-value">{{ countBySeverity['MEDIUM'] }}</div>
+        </div>
+        <div class="kpi kpi-low" *ngIf="countBySeverity['LOW']">
+            <div class="kpi-label">Basse</div>
+            <div class="kpi-value">{{ countBySeverity['LOW'] }}</div>
+        </div>
+    </section>
+
+    <div class="card">
+        <div *ngIf="alertsLoading && !alertsList.length" class="loading">
+            <i class="bi bi-hourglass-split"></i> Chargement des alertes…
+        </div>
+
+        <div *ngIf="!alertsLoading && !alertsList.length" class="empty">
+            <i class="bi bi-shield-check"></i>
+            <h3>Aucune alerte</h3>
+            <p>Le système fonctionne normalement.</p>
+        </div>
+
+        <div class="alert-list" *ngIf="alertsList.length">
+            <div *ngFor="let alert of alertsList" class="alert-item" [class]="severityClass(alert.severity)">
+                <div class="alert-icon"><i class="bi" [class]="severityIcon(alert.severity)"></i></div>
+                <div class="alert-content">
+                    <div class="alert-header">
+                        <span class="alert-type">{{ alert.alert_type || alert.type || 'ALERT' }}</span>
+                        <span class="alert-severity-tag" [style.background]="severityColor(alert.severity) + '20'"
+                              [style.color]="severityColor(alert.severity)">
+              {{ alert.severity }}
+            </span>
+                        <span class="alert-date">{{ fmtDate(alert.triggered_at || alert.created_at) }}</span>
+                    </div>
+                    <div class="alert-message">{{ alert.message || alert.description }}</div>
+                    <div class="alert-meta" *ngIf="alert.feature_name || alert.client_id || alert.z_score">
+            <span *ngIf="alert.feature_name">
+              <strong>Feature :</strong> <code>{{ alert.feature_name }}</code>
+            </span>
+                        <span *ngIf="alert.psi_value">
+              <strong>PSI :</strong> {{ alert.psi_value | number:'1.2-4' }}
+            </span>
+                        <span *ngIf="alert.z_score !== undefined">
+              <strong>Z-score :</strong> {{ alert.z_score | number:'1.2-2' }}
+            </span>
+                        <span *ngIf="alert.client_id" class="mono">
+              <strong>Client :</strong> {{ shortId(alert.client_id) }}
+            </span>
+                    </div>
+                </div>
+                <span class="alert-status" [class.resolved]="alert.resolved">
+          <i class="bi" [class.bi-check-circle-fill]="alert.resolved" [class.bi-clock]="!alert.resolved"></i>
+                    {{ alert.resolved ? 'Résolue' : 'Active' }}
+        </span>
+            </div>
+        </div>
+
+        <div class="pagination" *ngIf="alertsTotal > pageSize">
+            <button (click)="prev()" [disabled]="alertsPage === 0">
+                <i class="bi bi-chevron-left"></i> Précédent
+            </button>
+            <span>Page {{ alertsPage + 1 }} / {{ Math.ceil(alertsTotal / pageSize) }}</span>
+            <button (click)="next()" [disabled]="(alertsPage + 1) * pageSize >= alertsTotal">
+                Suivant <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+</div>

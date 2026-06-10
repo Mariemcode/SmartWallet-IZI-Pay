@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1061466493050",
+    "project_id": "smartwallet-pfe",
+    "storage_bucket": "smartwallet-pfe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1061466493050:android:520d7c9cce1cb1c6fa6bc3",
+        "android_client_info": {
+          "package_name": "com.example.wallet_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSjw7DS5ME_RRCFEEwHnSTI3JBVuTsBEc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

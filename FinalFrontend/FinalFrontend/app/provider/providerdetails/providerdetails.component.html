@@ -1,0 +1,591 @@
+<div class="detail-page">
+
+  <!-- ── Loader ────────────────────────────────────────────────────── -->
+  <div class="loader-wrap" *ngIf="loading">
+    <div class="loader-ring"></div>
+    <span>Chargement des données…</span>
+  </div>
+
+  <!-- ── Erreur ────────────────────────────────────────────────────── -->
+  <div class="error-banner" *ngIf="error && !loading">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    Impossible de charger les données du provider.
+  </div>
+
+  <ng-container *ngIf="detail && !loading">
+
+    <!-- ── Header ─────────────────────────────────────────────────── -->
+    <div class="page-header2">
+      <div class="header-left">
+        <button class="btn-back" (click)="goBack()">
+          <i class="bi bi-arrow-left"></i> Retour aux providers
+        </button>
+        <div class="breadcrumb">
+          <span class="bc-link" (click)="goBack()">Providers</span>
+          <i class="bi bi-chevron-right bc-sep"></i>
+          <span class="bc-current">{{ detail.providerName }}</span>
+        </div>
+      </div>
+
+      <div class="date-filter">
+        <div class="date-input-group">
+          <label>Du</label>
+          <input type="date" [(ngModel)]="fromDate" />
+        </div>
+        <div class="date-sep">→</div>
+        <div class="date-input-group">
+          <label>Au</label>
+          <input type="date" [(ngModel)]="toDate" />
+        </div>
+        <button class="btn-apply" (click)="load()">
+          <i class="bi bi-funnel-fill"></i> Appliquer
+        </button>
+      </div>
+    </div>
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- HEADER                                                      -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <div class="page-header">
+      <!-- Hero + Date Filter -->
+      <div class="header-main">
+        <!-- Hero Card -->
+        <div class="hero-card">
+          <div class="hero-identity">
+            <div class="hero-avatar">{{ getInitials(detail.providerName) }}</div>
+            <div class="hero-info">
+              <h1 class="hero-name">{{ detail.providerName }}</h1>
+              <div class="hero-badges">
+                <span class="badge-code">
+                  <i class="bi bi-upc"></i> {{ detail.providerCode }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-ranks">
+            <div class="rank-item">
+              <span class="rank-label">
+                <i class="bi bi-trophy"></i> Rang tx
+              </span>
+              <span class="rank-val">#{{ detail.rankByCount }}</span>
+            </div>
+            <div class="rank-sep"></div>
+            <div class="rank-item">
+              <span class="rank-label">
+                <i class="bi bi-trophy"></i> Rang montant
+              </span>
+              <span class="rank-val">#{{ detail.rankByAmount }}</span>
+            </div>
+            <div class="rank-sep"></div>
+            <div class="rank-item">
+              <span class="rank-label">
+                <i class="bi bi-pie-chart"></i> Part marché
+              </span>
+              <span class="rank-val">{{ detail.marketShareCount }}%</span>
+            </div>
+            <div class="rank-sep"></div>
+            <div class="rank-item">
+              <span class="rank-label">
+                <i class="bi bi-currency-exchange"></i> Part montant
+              </span>
+              <span class="rank-val">{{ detail.marketShareAmount }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- KPI GRID                                                    -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <div class="kpi-grid">
+
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon-wrap">
+          <i class="bi bi-arrow-left-right"></i>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Total Transactions</div>
+          <div class="kpi-value">{{ formatCount(detail.totalTransactions) }}</div>
+          <div class="kpi-sub">
+            <i class="bi bi-graph-up-arrow"></i> volume global
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon-wrap">
+          <i class="bi bi-cash-coin"></i>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Montant Total</div>
+          <div class="kpi-value kpi-sm">{{ formatAmount(detail.totalAmount) }}</div>
+          <div class="kpi-sub">
+            <i class="bi bi-currency-exchange"></i> TND
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-indigo">
+        <div class="kpi-icon-wrap">
+          <i class="bi bi-calculator"></i>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Montant Moyen</div>
+          <div class="kpi-value kpi-sm">{{ formatAmount(detail.avgAmount) }}</div>
+          <div class="kpi-sub">
+            <i class="bi bi-bar-chart"></i> par transaction
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-icon-wrap">
+          <i class="bi bi-people-fill"></i>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Clients Distincts</div>
+          <div class="kpi-value">{{ formatCount(detail.distinctClients) }}</div>
+          <div class="kpi-sub">
+            <i class="bi bi-person-check"></i> clients uniques
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-orange">
+        <div class="kpi-icon-wrap">
+          <i class="bi bi-graph-down-arrow"></i>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Min Transaction</div>
+          <div class="kpi-value kpi-sm">{{ formatAmount(detail.minAmount) }}</div>
+          <div class="kpi-sub">
+            <i class="bi bi-arrow-down"></i> montant min
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon-wrap">
+          <i class="bi bi-graph-up-arrow"></i>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Max Transaction</div>
+          <div class="kpi-value kpi-sm">{{ formatAmount(detail.maxAmount) }}</div>
+          <div class="kpi-sub">
+            <i class="bi bi-arrow-up"></i> montant max
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- TABS BAR                                                    -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <div class="tabs-bar">
+      <button [class.active]="activeTab === 'types'" (click)="setTab('types')">
+        <i class="bi bi-layers"></i> Types de Transactions
+      </button>
+      <button [class.active]="activeTab === 'clients'" (click)="setTab('clients')">
+        <i class="bi bi-people"></i> Analyse Clients
+      </button>
+      <button [class.active]="activeTab === 'distribution'" (click)="setTab('distribution')">
+        <i class="bi bi-bar-chart-steps"></i> Distribution Montants
+      </button>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- TAB : TYPES DE TRANSACTIONS                                 -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <div *ngIf="activeTab === 'types'" class="tab-content">
+      <div class="section-card">
+
+        <div class="section-header">
+          <div class="section-title">
+            <i class="bi bi-table"></i>
+            Ranking des Types de Transactions
+          </div>
+          <span class="section-badge">
+            <i class="bi bi-layers"></i>
+            {{ detail.typeStats.length }} types
+          </span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:44px">#</th>
+                <th><i class="bi bi-tag"></i> Type</th>
+                <th><i class="bi bi-grid"></i> Catégorie</th>
+                <th><i class="bi bi-diagram-3"></i> Sous-catégorie</th>
+                <th><i class="bi bi-arrow-left-right"></i> Direction</th>
+                <th><i class="bi bi-hash"></i> Nb Transactions</th>
+                <th><i class="bi bi-bar-chart"></i> Part</th>
+                <th><i class="bi bi-cash-coin"></i> Montant Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let t of detail.typeStats; let i = index">
+
+                <td>
+                  <span class="rank-badge" [style.background]="i === 0 ? '#f59e0b' :
+                                            i === 1 ? '#94a3b8' :
+                                            i === 2 ? '#b45309' : '#e3f0ff'"
+                    [style.color]="i < 3 ? '#fff' : '#1565c0'">
+                    {{ i + 1 }}
+                  </span>
+                </td>
+
+                <td>
+                  <span class="type-name">{{ t.typeTitle }}</span>
+                </td>
+
+                <td>
+                  <span class="cat-chip">{{ t.category }}</span>
+                </td>
+
+                <td class="text-muted">{{ t.subCategory || '—' }}</td>
+
+                <td>
+                  <span class="dir-badge" [class.debit]="t.typeDirection === 'D'"
+                    [class.credit]="t.typeDirection === 'C'">
+                    <i class="bi" [class.bi-arrow-up-circle-fill]="t.typeDirection === 'D'"
+                      [class.bi-arrow-down-circle-fill]="t.typeDirection === 'C'">
+                    </i>
+                    {{ t.typeDirection === 'D' ? 'Débit' : 'Crédit' }}
+                  </span>
+                </td>
+
+                <td class="count-cell">{{ formatCount(t.count) }}</td>
+
+                <td>
+                  <div class="bar-cell">
+                    <div class="bar-track">
+                      <div class="bar-fill" style="background:#1565c0" [style.width.%]="typePct(t.count)">
+                      </div>
+                    </div>
+                    <span class="bar-pct">{{ typePct(t.count) }}%</span>
+                  </div>
+                </td>
+
+                <td class="amount-cell">{{ formatAmount(t.totalAmount) }}</td>
+
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="empty-state" *ngIf="detail.typeStats.length === 0">
+          <i class="bi bi-inbox"></i>
+          <span>Aucun type de transaction pour cette période.</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- TAB : ANALYSE CLIENTS                                       -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <div *ngIf="activeTab === 'clients'" class="tab-content">
+
+      <!-- KPIs clients -->
+      <div class="client-kpi-grid">
+
+        <div class="ckpi-card ckpi-green">
+          <div class="ckpi-icon">
+            <i class="bi bi-person-check-fill"></i>
+          </div>
+          <div class="ckpi-value">{{ formatCount(detail.recurringClients) }}</div>
+          <div class="ckpi-label">Clients récurrents</div>
+        </div>
+
+        <div class="ckpi-card ckpi-gray">
+          <div class="ckpi-icon">
+            <i class="bi bi-person"></i>
+          </div>
+          <div class="ckpi-value">{{ formatCount(detail.occasionalClients) }}</div>
+          <div class="ckpi-label">Clients occasionnels</div>
+        </div>
+
+        <div class="ckpi-card ckpi-blue">
+          <div class="ckpi-icon">
+            <i class="bi bi-cash"></i>
+          </div>
+          <div class="ckpi-value ckpi-sm">{{ formatAmount(detail.avgAmountPerClient) }}</div>
+          <div class="ckpi-label">Moy. par client</div>
+        </div>
+
+        <div class="ckpi-card ckpi-purple">
+          <div class="ckpi-icon">
+            <i class="bi bi-people-fill"></i>
+          </div>
+          <div class="ckpi-value">{{ formatCount(detail.distinctClients) }}</div>
+          <div class="ckpi-label">Total clients</div>
+        </div>
+
+      </div>
+
+      <!-- Top clients deux colonnes -->
+      <div class="two-col">
+
+        <!-- Top par montant -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">
+              <i class="bi bi-trophy-fill" style="color:#f59e0b"></i>
+              Top 10 — Par Montant
+            </div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:44px">#</th>
+                <th><i class="bi bi-person"></i> Client</th>
+                <th><i class="bi bi-arrow-left-right"></i> Tx</th>
+                <th><i class="bi bi-cash-coin"></i> Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of detail.topClientsByAmount; let i = index">
+                <td>
+                  <span class="rank-badge" [style.background]="i === 0 ? '#f59e0b' :
+                                            i === 1 ? '#94a3b8' :
+                                            i === 2 ? '#b45309' : '#e3f0ff'"
+                    [style.color]="i < 3 ? '#fff' : '#1565c0'">
+                    {{ i + 1 }}
+                  </span>
+                </td>
+                <td>
+                  <div class="client-cell">
+                    <div class="client-avatar blue">
+                      {{ clientInitials(c) }}
+                    </div>
+                    <div>
+                      <div class="client-name">{{ c.firstName }} {{ c.lastName }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="count-cell">{{ formatCount(c.transactionCount) }}</td>
+                <td class="amount-cell">{{ formatAmount(c.totalAmount) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" *ngIf="detail.topClientsByAmount.length === 0">
+            <i class="bi bi-inbox"></i><span>Aucun client.</span>
+          </div>
+        </div>
+
+        <!-- Top par fréquence -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">
+              <i class="bi bi-repeat" style="color:#8b5cf6"></i>
+              Top 10 — Par Fréquence
+            </div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:44px">#</th>
+                <th><i class="bi bi-person"></i> Client</th>
+                <th><i class="bi bi-arrow-left-right"></i> Tx</th>
+                <th><i class="bi bi-cash-coin"></i> Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of detail.topClientsByCount; let i = index">
+                <td>
+                  <span class="rank-badge" [style.background]="i === 0 ? '#8b5cf6' :
+                                            i === 1 ? '#a78bfa' :
+                                            i === 2 ? '#c4b5fd' : '#ede9fe'"
+                    [style.color]="i < 3 ? '#fff' : '#8b5cf6'">
+                    {{ i + 1 }}
+                  </span>
+                </td>
+                <td>
+                  <div class="client-cell">
+                    <div class="client-avatar purple">
+                      {{ clientInitials(c) }}
+                    </div>
+                    <div>
+                      <div class="client-name">{{ c.firstName }} {{ c.lastName }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="count-cell">{{ formatCount(c.transactionCount) }}</td>
+                <td class="amount-cell">{{ formatAmount(c.totalAmount) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" *ngIf="detail.topClientsByCount.length === 0">
+            <i class="bi bi-inbox"></i><span>Aucun client.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- TAB : DISTRIBUTION MONTANTS                                 -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <div *ngIf="activeTab === 'distribution'" class="tab-content">
+      <div class="two-col">
+
+        <!-- Donut distribution -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">
+              <i class="bi bi-pie-chart-fill"></i>
+              Répartition par Tranche
+            </div>
+            <span class="section-badge">
+              {{ formatCount(detail.totalTransactions) }} tx
+            </span>
+          </div>
+
+          <div class="donut-layout">
+            <svg viewBox="0 0 300 300" class="dist-donut-svg">
+              <!-- Track -->
+              <circle cx="150" cy="150" r="110" fill="none" stroke="#f0f4fa" stroke-width="44" />
+
+              <!-- Arcs colorés -->
+              <path *ngIf="smallArc" [attr.d]="smallArc" fill="none" stroke="#34d399" stroke-width="44"
+                stroke-linecap="butt" class="arc-segment" />
+              <path *ngIf="mediumArc" [attr.d]="mediumArc" fill="none" stroke="#f59e0b" stroke-width="44"
+                stroke-linecap="butt" class="arc-segment" />
+              <path *ngIf="largeArc" [attr.d]="largeArc" fill="none" stroke="#e53935" stroke-width="44"
+                stroke-linecap="butt" class="arc-segment" />
+
+              <!-- Séparateurs blancs -->
+              <path *ngIf="smallArc" [attr.d]="smallArc" fill="none" stroke="#ffffff" stroke-width="2"
+                stroke-linecap="butt" pointer-events="none" />
+              <path *ngIf="mediumArc" [attr.d]="mediumArc" fill="none" stroke="#ffffff" stroke-width="2"
+                stroke-linecap="butt" pointer-events="none" />
+              <path *ngIf="largeArc" [attr.d]="largeArc" fill="none" stroke="#ffffff" stroke-width="2"
+                stroke-linecap="butt" pointer-events="none" />
+
+              <!-- Centre blanc -->
+              <circle cx="150" cy="150" r="88" fill="#ffffff" />
+
+              <!-- Texte centre -->
+              <text x="150" y="138" text-anchor="middle" fill="#6b7fa3" font-size="10"
+                font-family="'DM Sans', sans-serif" font-weight="500">TRANSACTIONS</text>
+              <text x="150" y="158" text-anchor="middle" fill="#1a2740" font-size="15" font-family="'Syne', sans-serif"
+                font-weight="700">
+                {{ formatCount(detail.totalTransactions) }}
+              </text>
+              <text x="150" y="174" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                font-family="'DM Sans', sans-serif">
+                au total
+              </text>
+            </svg>
+
+            <div class="dist-legend">
+              <div class="dist-legend-item">
+                <span class="legend-dot" style="background:#34d399"></span>
+                <div class="legend-text">
+                  <div class="legend-name">Petits &lt; 100 TND</div>
+                  <div class="legend-sub">
+                    {{ formatCount(detail.smallCount) }} tx
+                  </div>
+                </div>
+                <span class="legend-pct" style="color:#34d399">
+                  {{ detail.smallPct }}%
+                </span>
+              </div>
+              <div class="dist-legend-item">
+                <span class="legend-dot" style="background:#f59e0b"></span>
+                <div class="legend-text">
+                  <div class="legend-name">Moyens 100–1000 TND</div>
+                  <div class="legend-sub">
+                    {{ formatCount(detail.mediumCount) }} tx
+                  </div>
+                </div>
+                <span class="legend-pct" style="color:#f59e0b">
+                  {{ detail.mediumPct }}%
+                </span>
+              </div>
+              <div class="dist-legend-item">
+                <span class="legend-dot" style="background:#e53935"></span>
+                <div class="legend-text">
+                  <div class="legend-name">Grands &gt; 1000 TND</div>
+                  <div class="legend-sub">
+                    {{ formatCount(detail.largeCount) }} tx
+                  </div>
+                </div>
+                <span class="legend-pct" style="color:#e53935">
+                  {{ detail.largePct }}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barres comparatives -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title">
+              <i class="bi bi-bar-chart-steps"></i>
+              Comparaison des Tranches
+            </div>
+          </div>
+          <div class="dist-bars">
+
+            <div class="dist-row">
+              <div class="dist-header-row">
+                <span class="dist-dot" style="background:#34d399"></span>
+                <span class="dist-label">Petits &lt; 100 TND</span>
+                <span class="dist-count">{{ formatCount(detail.smallCount) }} tx</span>
+              </div>
+              <div class="dist-track">
+                <div class="dist-fill" style="background:#34d399" [style.width.%]="detail.smallPct">
+                </div>
+              </div>
+              <div class="dist-footer">
+                <span>{{ formatCount(detail.smallCount) }} transactions</span>
+                <strong>{{ detail.smallPct }}%</strong>
+              </div>
+            </div>
+
+            <div class="dist-row">
+              <div class="dist-header-row">
+                <span class="dist-dot" style="background:#f59e0b"></span>
+                <span class="dist-label">Moyens 100–1000 TND</span>
+                <span class="dist-count">{{ formatCount(detail.mediumCount) }} tx</span>
+              </div>
+              <div class="dist-track">
+                <div class="dist-fill" style="background:#f59e0b" [style.width.%]="detail.mediumPct">
+                </div>
+              </div>
+              <div class="dist-footer">
+                <span>{{ formatCount(detail.mediumCount) }} transactions</span>
+                <strong>{{ detail.mediumPct }}%</strong>
+              </div>
+            </div>
+
+            <div class="dist-row">
+              <div class="dist-header-row">
+                <span class="dist-dot" style="background:#e53935"></span>
+                <span class="dist-label">Grands &gt; 1000 TND</span>
+                <span class="dist-count">{{ formatCount(detail.largeCount) }} tx</span>
+              </div>
+              <div class="dist-track">
+                <div class="dist-fill" style="background:#e53935" [style.width.%]="detail.largePct">
+                </div>
+              </div>
+              <div class="dist-footer">
+                <span>{{ formatCount(detail.largeCount) }} transactions</span>
+                <strong>{{ detail.largePct }}%</strong>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </ng-container>
+</div>

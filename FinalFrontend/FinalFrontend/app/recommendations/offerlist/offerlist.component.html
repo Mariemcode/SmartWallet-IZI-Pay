@@ -1,0 +1,327 @@
+<div class="offers-page">
+
+  <!-- ── Header ─────────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+      <span class="header-tag">OFFRES</span>
+      <h1>Gestion des <span class="accent">Offres</span></h1>
+      <p class="subtitle">Catalogue des offres actives, inactives et auto-générées</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-regenerate" (click)="regenerateOffers()" [disabled]="regenerating">
+        <i class="bi bi-arrow-clockwise"></i>
+        <span *ngIf="regenerating">Régénération…</span>
+        <span *ngIf="!regenerating">Régénérer les offres</span>
+      </button>
+      <button class="btn-add" (click)="createOffer()">
+        <i class="bi bi-plus-lg"></i> Nouvelle offre
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Loader ──────────────────────────────────────────────────────── -->
+  <div class="loader-wrap" *ngIf="loading">
+    <div class="loader-ring"></div>
+    <span>Chargement des données…</span>
+  </div>
+
+  <!-- ── Dashboard ──────────────────────────────────────────────────── -->
+  <div class="dashboard" *ngIf="!loading">
+
+    <!-- ── KPI Row ──────────────────────────────────────────────────── -->
+    <div class="kpi-row">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon-wrap"><i class="bi bi-box-seam"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Total offres</div>
+          <div class="kpi-value">{{ totalOffers }}</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon-wrap"><i class="bi bi-check-circle"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Actives</div>
+          <div class="kpi-value">{{ activeOffers }}</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-red">
+        <div class="kpi-icon-wrap"><i class="bi bi-x-circle"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Inactives</div>
+          <div class="kpi-value">{{ inactiveOffers }}</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-indigo">
+        <div class="kpi-icon-wrap"><i class="bi bi-tools"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Manuelles</div>
+          <div class="kpi-value">{{ manualOffers }}</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon-wrap"><i class="bi bi-robot"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Auto-générées</div>
+          <div class="kpi-value">{{ autoOffers }}</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-icon-wrap"><i class="bi bi-calendar3"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Âge moyen (actives)</div>
+          <div class="kpi-value">{{ avgOfferAge }} <span class="kpi-unit">j</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Donut Chart — même style que profileliste (full width) ──── -->
+    <div class="chart-card chart-card-full" *ngIf="allOffers.length">
+      <div class="chart-header">
+        <i class="bi bi-pie-chart-fill"></i>
+        <span class="chart-title">Répartition par profil cible</span>
+      </div>
+      <div class="donut-layout">
+
+        <svg viewBox="0 0 300 300" class="donut-svg">
+          <circle cx="150" cy="150" r="110"
+                  fill="none" stroke="#f0f4fa" stroke-width="44"/>
+
+          <ng-container *ngFor="let arc of profileArcs; let i = index">
+            <path *ngIf="arc?.path"
+                  [attr.d]="arc.path"
+                  fill="none"
+                  [attr.stroke]="arc.color"
+                  stroke-width="44"
+                  stroke-linecap="butt"
+                  class="arc-segment"
+                  [class.arc-dimmed]="hoveredProfile !== null && hoveredProfile !== i"
+                  [class.arc-active]="hoveredProfile === i"
+                  (mouseenter)="hoveredProfile = i"
+                  (mouseleave)="hoveredProfile = null"/>
+          </ng-container>
+
+          <ng-container *ngFor="let arc of profileArcs; let i = index">
+            <path *ngIf="arc?.path"
+                  [attr.d]="arc.path"
+                  fill="none"
+                  stroke="#ffffff"
+                  stroke-width="2"
+                  stroke-linecap="butt"
+                  pointer-events="none"/>
+          </ng-container>
+
+          <circle cx="150" cy="150" r="88" fill="#ffffff"/>
+
+          <ng-container *ngIf="hoveredProfile === null">
+            <text x="150" y="138" text-anchor="middle" fill="#6b7fa3" font-size="10"
+                  font-family="'DM Sans', sans-serif" font-weight="500">PROFILS</text>
+            <text x="150" y="158" text-anchor="middle" fill="#1a2740" font-size="14"
+                  font-family="'Syne', sans-serif" font-weight="700">{{ profileLabels.length }}</text>
+            <text x="150" y="173" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                  font-family="'DM Sans', sans-serif">segments</text>
+          </ng-container>
+
+          <ng-container *ngIf="hoveredProfile !== null">
+            <text x="150" y="128" text-anchor="middle" fill="#6b7fa3" font-size="9"
+                  font-family="'DM Sans', sans-serif" font-weight="500">
+              {{ profileLabels[hoveredProfile] | slice:0:18 }}
+            </text>
+            <text x="150" y="154" text-anchor="middle"
+                  [attr.fill]="profileArcs[hoveredProfile]?.color"
+                  font-size="26" font-family="'Syne', sans-serif" font-weight="700">
+              {{ profilePercents[hoveredProfile] }}%
+            </text>
+            <text x="150" y="171" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                  font-family="'DM Sans', sans-serif">
+              {{ profileCounts[hoveredProfile] }} offre(s)
+            </text>
+          </ng-container>
+        </svg>
+
+        <!-- Légende verticale scrollable — identique à profileliste -->
+        <div class="donut-legend">
+          <div class="legend-item"
+               *ngFor="let label of profileLabels; let i = index"
+               [class.legend-active]="hoveredProfile === i"
+               [class.legend-dimmed]="hoveredProfile !== null && hoveredProfile !== i"
+               (mouseenter)="hoveredProfile = i"
+               (mouseleave)="hoveredProfile = null">
+            <span class="legend-dot" [style.background]="profileArcs[i]?.color"></span>
+            <div class="legend-text">
+              <div class="legend-name">{{ label }}</div>
+              <div class="legend-sub">{{ profileCounts[i] }} offre(s)</div>
+            </div>
+            <span class="legend-pct" [style.color]="profileArcs[i]?.color">
+              {{ profilePercents[i] }}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Filtres ────────────────────────────────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-funnel"></i> Filtres
+        </div>
+      </div>
+      <div class="filters-body">
+        <form [formGroup]="filterForm" (ngSubmit)="onFilterChange()">
+          <div class="filter-row">
+
+            <div class="filter-group">
+              <label class="filter-label">Statut</label>
+              <select class="filter-select" formControlName="status">
+                <option *ngFor="let s of statusOptions" [value]="s">{{ s || 'Tous' }}</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label class="filter-label">Type</label>
+              <select class="filter-select" formControlName="type">
+                <option *ngFor="let t of typeOptions" [value]="t">{{ t || 'Tous' }}</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label class="filter-label">Profil cible</label>
+              <select class="filter-select" formControlName="targetProfile">
+                <option value="">Tous les profils</option>
+                <option *ngFor="let p of profileOptions" [value]="p">{{ p }}</option>
+              </select>
+            </div>
+
+            <!-- Boutons sur la même ligne -->
+            <div class="filter-actions">
+              <button type="submit" class="btn-filter-apply">
+                <i class="bi bi-search"></i> Filtrer
+              </button>
+              <button type="button" class="btn-filter-reset"
+                      (click)="filterForm.reset({ status: '', type: '', targetProfile: '' }); onFilterChange()">
+                <i class="bi bi-arrow-counterclockwise"></i> Réinitialiser
+              </button>
+            </div>
+
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Tableau des offres ─────────────────────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-table"></i> Liste des offres
+          <span class="section-count">{{ totalCount }}</span>
+        </div>
+        <div class="page-size-selector">
+          <label class="filter-label">Afficher :</label>
+          <select class="filter-select filter-select-sm" (change)="onPageSizeChange($any($event.target).value)">
+            <option *ngFor="let size of pageSizes" [value]="size" [selected]="size === pageSize">{{ size }}</option>
+          </select>
+        </div>
+      </div>
+
+      <table class="data-table" *ngIf="paginatedOffers.length > 0">
+        <thead>
+          <tr>
+            <th><i class="bi bi-upc"></i> Code</th>
+            <th><i class="bi bi-card-text"></i> Titre</th>
+            <th><i class="bi bi-tag"></i> Type</th>
+            <th><i class="bi bi-percent"></i> Cashback</th>
+            <th><i class="bi bi-scissors"></i> Remise</th>
+            <th><i class="bi bi-people"></i> Profils</th>
+            <th><i class="bi bi-circle-half"></i> Statut</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let offer of paginatedOffers">
+            <td><span class="code-tag"><i class="bi bi-upc"></i> {{ offer.offerCode }}</span></td>
+            <td class="offer-title">{{ offer.title }}</td>
+            <td>{{ offer.type }}</td>
+            <td><span class="pct-badge pct-cashback">{{ offer.cashbackPct }}%</span></td>
+            <td><span class="pct-badge pct-discount">{{ offer.discountPct }}%</span></td>
+            <td>
+              <div class="profile-badges">
+                <span *ngFor="let p of offer.targetProfiles" class="profile-badge">{{ p }}</span>
+                <span *ngIf="!offer.targetProfiles?.length" class="profile-badge profile-badge-all">Tous</span>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge"
+                    [class.status-active]="offer.status === 'ACTIVE'"
+                    [class.status-inactive]="offer.status === 'INACTIVE'">
+                <i class="bi"
+                   [class.bi-check-circle-fill]="offer.status === 'ACTIVE'"
+                   [class.bi-x-circle-fill]="offer.status === 'INACTIVE'"></i>
+                {{ offer.status }}
+              </span>
+            </td>
+            <td>
+              <button class="detail-btn" (click)="viewOfferDetails(offer.offerCode)">
+                <i class="bi bi-eye"></i> Détails
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="empty-state" *ngIf="paginatedOffers.length === 0">
+        <i class="bi bi-inbox"></i>
+        <span>Aucune offre trouvée.</span>
+      </div>
+
+      <div *ngIf="totalPages > 1" class="pagination">
+        <button class="page-btn" [disabled]="currentPage === 0" (click)="onPageChange(currentPage - 1)">
+          <i class="bi bi-chevron-left"></i> Précédent
+        </button>
+        <span class="page-info">Page {{ currentPage + 1 }} / {{ totalPages }}</span>
+        <button class="page-btn" [disabled]="currentPage >= totalPages - 1" (click)="onPageChange(currentPage + 1)">
+          Suivant <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Alertes métier — Expansion Panel ──────────────────────── -->
+    <div class="expansion-panel" [class.panel-open]="alertsExpanded">
+
+      <div class="expansion-header" (click)="alertsExpanded = !alertsExpanded">
+        <div class="section-title">
+          <i class="bi bi-exclamation-triangle-fill"
+             [style.color]="alertMessages.length > 0 ? '#e65100' : '#2e7d32'"></i>
+          Alertes métier
+          <span class="alerts-count-badge" *ngIf="alertMessages.length > 0">
+            {{ alertMessages.length }}
+          </span>
+          <span class="alerts-ok-badge" *ngIf="alertMessages.length === 0">
+            <i class="bi bi-check2"></i> Aucune alerte
+          </span>
+        </div>
+        <i class="bi expansion-chevron"
+           [class.bi-chevron-down]="!alertsExpanded"
+           [class.bi-chevron-up]="alertsExpanded"></i>
+      </div>
+
+      <div class="expansion-body">
+        <div class="alerts-body" *ngIf="alertMessages.length > 0">
+          <div *ngFor="let alert of alertMessages"
+               class="alert-item"
+               [class.alert-warning]="alert.severity === 'warning'"
+               [class.alert-critical]="alert.severity === 'critical'">
+            <i class="bi"
+               [class.bi-exclamation-circle]="alert.severity === 'warning'"
+               [class.bi-x-octagon-fill]="alert.severity === 'critical'"></i>
+            <span>{{ alert.message }}</span>
+          </div>
+        </div>
+        <div class="empty-alerts" *ngIf="alertMessages.length === 0">
+          <i class="bi bi-check2-all"></i>
+          <span>Aucune alerte active pour le moment.</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

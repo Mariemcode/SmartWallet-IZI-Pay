@@ -1,0 +1,180 @@
+<div class="page-wrapper">
+
+  <!-- Loading global -->
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <span>Chargement en cours...</span>
+  </div>
+
+  <!-- Erreur -->
+  <div class="error-alert" *ngIf="error && !loading">
+    <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+  </div>
+
+  <div *ngIf="client && !loading">
+
+    <!-- ── Header ── -->
+    <div class="page-header">
+      <button class="back-btn" (click)="goBack()">
+        <i class="bi bi-arrow-left"></i>
+      </button>
+      <div class="header-title">
+        <p class="breadcrumb">Clients / Détail</p>
+        <h1>{{ client.firstName }} {{ client.lastName }}</h1>
+      </div>
+    </div>
+
+    <!-- ── Fiche client ── -->
+    <div class="client-banner">
+      <div class="client-avatar">
+        {{ client.firstName[0] }}{{ client.lastName[0] }}
+      </div>
+      <div class="client-meta">
+        <div class="meta-item">
+          <span class="meta-label"><i class="bi bi-telephone-fill"></i> Téléphone</span>
+          <span class="meta-value phone">{{ client.phoneNumber }}</span>
+        </div>
+        <div class="meta-divider"></div>
+        <div class="meta-item">
+          <span class="meta-label"><i class="bi bi-calendar3"></i> Membre depuis</span>
+          <span class="meta-value">{{ client.createDateTime | date: 'dd MMM yyyy' }}</span>
+        </div>
+        <div class="meta-divider"></div>
+        <div class="meta-item">
+          <span class="meta-label"><i class="bi bi-receipt"></i> Transactions</span>
+          <span class="meta-value highlight">{{ transactions.length }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Filtres ── -->
+    <div class="panel">
+      <div class="panel-head">
+        <i class="bi bi-sliders"></i>
+        <span>Filtres</span>
+      </div>
+      <div class="panel-body filter-row">
+
+        <div class="filter-field">
+          <label>Catégorie</label>
+          <select [(ngModel)]="filter.category">
+            <option value="">Toutes</option>
+            <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+          </select>
+        </div>
+
+        <div class="filter-field">
+          <label>Type de mouvement</label>
+          <select [(ngModel)]="filter.typeType">
+            <option value="">Tous</option>
+            <option value="C">Crédit</option>
+            <option value="D">Débit</option>
+          </select>
+        </div>
+
+        <div class="filter-field">
+          <label>Date exacte</label>
+          <input type="date" [(ngModel)]="filter.date" />
+        </div>
+
+        <div class="filter-btns">
+          <button class="btn-primary" (click)="applyFilter()">
+            <i class="bi bi-search"></i> Rechercher
+          </button>
+          <button class="btn-ghost" (click)="resetFilter()">
+            <i class="bi bi-x"></i> Effacer
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Transactions ── -->
+    <div class="panel">
+      <div class="panel-head">
+        <i class="bi bi-clock-history"></i>
+        <span>Historique des transactions</span>
+      </div>
+
+      <!-- Loading transactions -->
+      <div class="loading-row" *ngIf="loadingTransactions">
+        <div class="spinner-sm"></div>
+        <span>Chargement...</span>
+      </div>
+
+      <!-- Vide -->
+      <div class="empty-box" *ngIf="!loadingTransactions && transactions.length === 0">
+        <i class="bi bi-inbox"></i>
+        <p>Aucune transaction pour ces critères</p>
+        <button class="btn-ghost" (click)="resetFilter()">
+          <i class="bi bi-arrow-counterclockwise"></i> Réinitialiser
+        </button>
+      </div>
+
+      <!-- Table -->
+      <div class="table-scroll" *ngIf="!loadingTransactions && transactions.length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Catégorie</th>
+              <th>Sous-catégorie</th>
+              <th>Prestataire</th>
+              <th>Montant</th>
+              <th>Devise</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tx of paginatedTransactions" [class.row-reversal]="isReversal(tx)">
+              <td class="cell-date">
+                <span class="date-day">{{ tx.transactionDate | date: 'dd/MM/yyyy' }}</span>
+                <span class="date-time">{{ tx.transactionDate | date: 'HH:mm' }}</span>
+              </td>
+              <td>
+                <span class="badge-type">{{ tx.typeTitle || tx.typeCode || '—' }}</span>
+              </td>
+              <td class="cell-muted">{{ tx.typeCategory || '—' }}</td>
+              <td class="cell-muted">{{ tx.typeSubCategory || '—' }}</td>
+              <td class="cell-muted">{{ tx.providerName || tx.providerCode || '—' }}</td>
+              <td>
+                <span class="amount" [class.credit]="tx.typeType === 'C'" [class.debit]="tx.typeType === 'D'">
+                  {{ tx.typeType === 'C' ? '+' : tx.typeType === 'D' ? '−' : '' }}{{ tx.amount | number: '1.3-3' }}
+                </span>
+              </td>
+              <td class="cell-currency">{{ tx.currency || 'TND' }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Contrôles de pagination -->
+        <div class="pagination-controls" *ngIf="totalPages > 1">
+          <div class="page-size-selector">
+            <label>Afficher : </label>
+            <select [value]="pageSize" (change)="onPageSizeChange(+$any($event.target).value)">
+              <option [value]="5">5</option>
+              <option [value]="10">10</option>
+              <option [value]="20">20</option>
+              <option [value]="50">50</option>
+            </select>
+          </div>
+          <div class="pagination-buttons">
+            <button class="pagination-btn" [disabled]="currentPage === 0" (click)="goToPage(currentPage - 1)">
+              <i class="bi bi-chevron-left"></i> Précédent
+            </button>
+            <span class="pagination-info">Page {{ currentPage + 1 }} / {{ totalPages }}</span>
+            <button class="pagination-btn" [disabled]="currentPage >= totalPages - 1" (click)="goToPage(currentPage + 1)">
+              Suivant <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Message de pagination simple si une seule page -->
+        <div class="pagination-info-simple" *ngIf="totalPages === 1 && transactions.length > pageSize">
+          Total : {{ transactions.length }} transactions
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

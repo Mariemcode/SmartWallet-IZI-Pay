@@ -1,0 +1,115 @@
+<div class="login-page">
+
+  <!-- Décorations géométriques de fond -->
+  <div class="geo geo-1"></div>
+  <div class="geo geo-2"></div>
+  <div class="geo geo-3"></div>
+  <div class="geo geo-4"></div>
+  <div class="geo geo-5"></div>
+
+  <!-- Grille de fond subtile -->
+  <div class="bg-grid"></div>
+
+  <!-- Carte formulaire centrée -->
+  <div class="form-card">
+
+    <!-- En-tête -->
+    <div class="form-header">
+
+      <div class="header-title-row">
+        <div class="form-icon">
+          <i class="bi bi-person-lock"></i>
+        </div>
+        <div class="header-text">
+          <h1>Connexion</h1>
+          <p>Entrez vos identifiants pour accéder au dashboard</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Alerte erreur -->
+    <div class="alert-error" *ngIf="errorMessage">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span>{{ errorMessage }}</span>
+      <button class="alert-close" (click)="errorMessage = ''">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <!-- Formulaire -->
+    <form class="login-form" (ngSubmit)="onSubmit()" #loginForm="ngForm">
+
+      <!-- Email -->
+      <div class="field-group" [class.field-error]="emailTouched && !emailValid">
+        <label for="email">
+          <i class="bi bi-envelope"></i> Adresse e-mail
+        </label>
+        <div class="input-wrap">
+          <i class="bi bi-envelope input-icon"></i>
+          <input id="email" type="email" placeholder="admin@exemple.com" [(ngModel)]="email" name="email"
+            (blur)="onEmailBlur()" (input)="onEmailInput()" autocomplete="email" required />
+          <span class="input-valid" *ngIf="emailTouched && emailValid">
+            <i class="bi bi-check-circle-fill"></i>
+          </span>
+        </div>
+        <span class="field-hint" *ngIf="emailTouched && !emailValid">
+          <i class="bi bi-info-circle"></i> Adresse e-mail invalide
+        </span>
+      </div>
+
+      <!-- Mot de passe -->
+      <div class="field-group" [class.field-error]="passwordTouched && !passwordValid">
+        <label for="password">
+          <i class="bi bi-lock"></i> Mot de passe
+        </label>
+        <div class="input-wrap">
+          <i class="bi bi-lock input-icon"></i>
+          <input id="password" [type]="showPassword ? 'text' : 'password'" placeholder="••••••••" [(ngModel)]="password"
+            name="password" (blur)="onPasswordBlur()" (input)="onPasswordInput()" autocomplete="current-password"
+            required />
+          <button type="button" class="toggle-pw" (click)="showPassword = !showPassword"
+            [title]="showPassword ? 'Masquer' : 'Afficher'">
+            <i [class]="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+          </button>
+        </div>
+        <span class="field-hint" *ngIf="passwordTouched && !passwordValid">
+          <i class="bi bi-info-circle"></i> Le mot de passe doit contenir au moins 6 caractères
+        </span>
+      </div>
+
+      <!-- Options -->
+      <div class="form-options">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="rememberMe" name="rememberMe" />
+          <span class="checkbox-box"></span>
+          Se souvenir de moi
+        </label>
+        <button type="button" class="forgot-link">
+          Mot de passe oublié ?
+        </button>
+      </div>
+
+      <!-- Bouton submit -->
+      <button type="submit" class="btn-login" [class.loading]="loading" [disabled]="loading || !canSubmit">
+        <ng-container *ngIf="!loading">
+          <i class="bi bi-box-arrow-in-right"></i>
+          Se connecter
+        </ng-container>
+        <ng-container *ngIf="loading">
+          <span class="btn-spinner"></span>
+          Connexion en cours…
+        </ng-container>
+      </button>
+
+      <!-- Indication démo (visible uniquement en environnement dev) -->
+      <div class="demo-hint">
+        <i class="bi bi-info-circle"></i>
+        <span>Démo : <code>admin&#64;admin.com</code> / <code>admin123</code></span>
+      </div>
+
+    </form>
+  </div>
+
+</div>

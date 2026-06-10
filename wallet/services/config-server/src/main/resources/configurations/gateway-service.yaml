@@ -1,0 +1,46 @@
+server:
+  port: 8222
+
+spring:
+  main:
+    web-application-type: reactive
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: "http://localhost:9098/realms/master"
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        # CLIENT-DASHBOARD — microservice prédictions + recommandations
+        - id: client-dashboard-service
+          uri: lb://CLIENT-DASHBOARD-SERVICE
+          predicates:
+            - Path=/api/marketing/**,/dashboard/**,/api/ia/**,/api/notifications/**,/api/transactions/**,/api/clients/**,/api/analysis/**,/api/recommendations/**,/api/metrics/**,/api/offers/**,/api/pipeline/**,/api/v1/profile/**,/api/dashboard/**,/api/admin/**,/api/transaction/**,/api/providers/**,/api/v1/classification/**,/api/interaction/**,/api/admin-service/**,/api/model/**,/admin/**,/api/client-offers/**
+        # SWAGGER
+        - id: swagger-ui
+          uri: http://localhost:8222
+          predicates:
+            - Path=/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+        - id: swagger-resources
+          uri: http://localhost:8222
+          predicates:
+            - Path=/swagger-ui/**,/v3/api-docs/**,/webjars/**
+
+client-dashboard:
+  url: http://localhost:8090
+
+fastapi:
+  base-url: http://127.0.0.1:8000
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.pfe.gateway: DEBUG

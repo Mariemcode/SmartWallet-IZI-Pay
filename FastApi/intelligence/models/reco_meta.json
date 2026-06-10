@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-06-08T04:11:29.939420",
+  "n_clients": 5314,
+  "n_clusters": 6,
+  "cluster_names": {
+    "0": "Micro-Utilisateur Passif",
+    "1": "Utilisateur Essentiel Stable",
+    "2": "Payeur Factures Premium",
+    "3": "Client Grande D\u00e9pense",
+    "4": "Client en Acc\u00e9l\u00e9ration R\u00e9cente",
+    "5": "Client en Croissance Digitale"
+  },
+  "silhouette_score": 0.162,
+  "silhouette_note": "PCA(10D) ou valeur UMAP valid\u00e9e du bin\u00f4me (0.4807)",
+  "gbm_accuracy": 0.9941,
+  "gbm_f1": 0.9941,
+  "n_recommendations": 4894,
+  "n_alerts": 2408,
+  "n_budget_optim": 4075,
+  "method": "GBM_V8_binome",
+  "features_count": 43
+}

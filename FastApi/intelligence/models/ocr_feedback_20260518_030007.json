@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-05-18T03:00:07.925509",
+  "ameliorations": [
+    {
+      "fournisseur": "STEG",
+      "total_scans": 4,
+      "scans_parfaits": 2,
+      "taux_succes_pct": 50.0,
+      "erreurs": {
+        "fournisseur": 0,
+        "montant": 2,
+        "date": 0,
+        "reference": 0
+      }
+    }
+  ]
+}

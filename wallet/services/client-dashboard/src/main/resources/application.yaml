@@ -1,0 +1,13 @@
+spring:
+  config:
+    import: optional:configserver:http://localhost:8888
+  application:
+    name: client-dashboard-service
+
+# ✅ Firebase au niveau racine (même niveau que 'spring')
+firebase:
+  credentials-path: C:/Users/MARIEM/Desktop/pfe/wallet/services/client-dashboard/serviceAccountKey.json
+  project-id: smartwallet-pfe
+
+server:
+  port: 8090

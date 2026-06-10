@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-06-06T22:54:29.340130",
+  "ameliorations": [
+    {
+      "fournisseur": "INCONNU",
+      "total_scans": 2,
+      "scans_parfaits": 0,
+      "taux_succes_pct": 0.0,
+      "erreurs": {
+        "fournisseur": 2,
+        "montant": 2,
+        "date": 2,
+        "reference": 2
+      }
+    }
+  ]
+}

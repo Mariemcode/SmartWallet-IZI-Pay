@@ -1,0 +1,20 @@
+{
+  "/api/v5": {
+    "target": "http://localhost:8000",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "info"
+  },
+  "/api": {
+    "target": "http://localhost:8222",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "info"
+  },
+  "/ws": {
+    "target": "ws://localhost:8222",
+    "ws": true,
+    "secure": false,
+    "changeOrigin": true
+  }
+}

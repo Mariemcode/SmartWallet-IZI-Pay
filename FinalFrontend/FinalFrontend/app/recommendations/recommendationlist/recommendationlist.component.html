@@ -1,0 +1,333 @@
+<!-- recommendationlist.component.html -->
+<div class="recommendation-page">
+
+    <!-- ── Header ─────────────────────────────────────────────────────── -->
+    <div class="page-header">
+        <div class="header-left">
+            <span class="header-tag">RECOMMANDATIONS</span>
+            <h1>Gestion des <span class="accent">Recommandations</span></h1>
+            <p class="subtitle">Suivi des recommandations générées, approuvées ou rejetées</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-regenerate" (click)="regenerateRecommendations()" [disabled]="regenerating">
+                <i class="bi bi-arrow-clockwise"></i>
+                <span *ngIf="regenerating">Régénération…</span>
+                <span *ngIf="!regenerating">Régénérer</span>
+            </button>
+            <button class="btn-add" routerLink="/layout/recommendation/recommendationsForm">
+                <i class="bi bi-plus-lg"></i> Nouvelle reco
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Loader ──────────────────────────────────────────────────────── -->
+    <div class="loader-wrap" *ngIf="loading">
+        <div class="loader-ring"></div>
+        <span>Chargement des données…</span>
+    </div>
+
+    <!-- ── Dashboard ──────────────────────────────────────────────────── -->
+    <div class="dashboard" *ngIf="!loading">
+
+        <!-- ── KPI Row ──────────────────────────────────────────────────── -->
+        <div class="kpi-row">
+            <div class="kpi-card kpi-blue">
+                <div class="kpi-icon-wrap"><i class="bi bi-bar-chart-steps"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">Total</div>
+                    <div class="kpi-value">{{ totalRecos }}</div>
+                </div>
+            </div>
+            <div class="kpi-card kpi-green">
+                <div class="kpi-icon-wrap"><i class="bi bi-check-circle"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">Approuvées</div>
+                    <div class="kpi-value">{{ approvedCount }}</div>
+                </div>
+            </div>
+            <div class="kpi-card kpi-red">
+                <div class="kpi-icon-wrap"><i class="bi bi-x-circle"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">Rejetées</div>
+                    <div class="kpi-value">{{ rejectedCount }}</div>
+                </div>
+            </div>
+            <div class="kpi-card kpi-amber">
+                <div class="kpi-icon-wrap"><i class="bi bi-hourglass-split"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">En attente</div>
+                    <div class="kpi-value">{{ pendingCount }}</div>
+                </div>
+            </div>
+            <div class="kpi-card kpi-teal">
+                <div class="kpi-icon-wrap"><i class="bi bi-graph-up"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">Score moyen</div>
+                    <div class="kpi-value">{{ avgScore | number:'1.2-2' }}</div>
+                </div>
+            </div>
+            <div class="kpi-card kpi-indigo">
+                <div class="kpi-icon-wrap"><i class="bi bi-check2-square"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">Taux d’approbation</div>
+                    <div class="kpi-value">{{ approvalRate }}<span class="kpi-unit">%</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Donut Chart — répartition par profil ─────────────────────── -->
+        <div class="chart-card chart-card-full" *ngIf="allRecommendations.length">
+            <div class="chart-header">
+                <i class="bi bi-pie-chart-fill"></i>
+                <span class="chart-title">Répartition par profil cible</span>
+            </div>
+            <div class="donut-layout">
+                <svg viewBox="0 0 300 300" class="donut-svg">
+                    <circle cx="150" cy="150" r="110" fill="none" stroke="#f0f4fa" stroke-width="44"/>
+                    <ng-container *ngFor="let arc of profileArcs; let i = index">
+                        <path *ngIf="arc?.path"
+                              [attr.d]="arc.path"
+                              fill="none"
+                              [attr.stroke]="arc.color"
+                              stroke-width="44"
+                              stroke-linecap="butt"
+                              class="arc-segment"
+                              [class.arc-dimmed]="hoveredProfile !== null && hoveredProfile !== i"
+                              [class.arc-active]="hoveredProfile === i"
+                              (mouseenter)="hoveredProfile = i"
+                              (mouseleave)="hoveredProfile = null"/>
+                    </ng-container>
+                    <ng-container *ngFor="let arc of profileArcs; let i = index">
+                        <path *ngIf="arc?.path"
+                              [attr.d]="arc.path"
+                              fill="none"
+                              stroke="#ffffff"
+                              stroke-width="2"
+                              stroke-linecap="butt"
+                              pointer-events="none"/>
+                    </ng-container>
+                    <circle cx="150" cy="150" r="88" fill="#ffffff"/>
+                    <ng-container *ngIf="hoveredProfile === null">
+                        <text x="150" y="138" text-anchor="middle" fill="#6b7fa3" font-size="10"
+                              font-family="'DM Sans', sans-serif" font-weight="500">PROFILS</text>
+                        <text x="150" y="158" text-anchor="middle" fill="#1a2740" font-size="14"
+                              font-family="'Syne', sans-serif" font-weight="700">{{ profileLabels.length }}</text>
+                        <text x="150" y="173" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                              font-family="'DM Sans', sans-serif">segments</text>
+                    </ng-container>
+                    <ng-container *ngIf="hoveredProfile !== null">
+                        <text x="150" y="128" text-anchor="middle" fill="#6b7fa3" font-size="9"
+                              font-family="'DM Sans', sans-serif" font-weight="500">
+                            {{ profileLabels[hoveredProfile] | slice:0:18 }}
+                        </text>
+                        <text x="150" y="154" text-anchor="middle"
+                              [attr.fill]="profileArcs[hoveredProfile]?.color"
+                              font-size="26" font-family="'Syne', sans-serif" font-weight="700">
+                            {{ profilePercents[hoveredProfile] }}%
+                        </text>
+                        <text x="150" y="171" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                              font-family="'DM Sans', sans-serif">
+                            {{ profileCounts[hoveredProfile] }} reco(s)
+                        </text>
+                    </ng-container>
+                </svg>
+
+                <div class="donut-legend">
+                    <div class="legend-item"
+                         *ngFor="let label of profileLabels; let i = index"
+                         [class.legend-active]="hoveredProfile === i"
+                         [class.legend-dimmed]="hoveredProfile !== null && hoveredProfile !== i"
+                         (mouseenter)="hoveredProfile = i"
+                         (mouseleave)="hoveredProfile = null">
+                        <span class="legend-dot" [style.background]="profileArcs[i]?.color"></span>
+                        <div class="legend-text">
+                            <div class="legend-name">{{ label }}</div>
+                            <div class="legend-sub">{{ profileCounts[i] }} reco(s)</div>
+                        </div>
+                        <span class="legend-pct" [style.color]="profileArcs[i]?.color">
+              {{ profilePercents[i] }}%
+            </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Filtres et actions batch ─────────────────────────────────── -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="bi bi-funnel"></i> Filtres
+                </div>
+            </div>
+            <div class="filters-body">
+                <form [formGroup]="filterForm" (ngSubmit)="onFilterChange()">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label class="filter-label">Statut</label>
+                            <select class="filter-select" formControlName="status">
+                                <option value="">Tous</option>
+                                <option value="PENDING">En attente</option>
+                                <option value="APPROVED">Approuvée</option>
+                                <option value="REJECTED">Rejetée</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Profil cible</label>
+                            <select class="filter-select" formControlName="profile">
+                                <option *ngFor="let p of profileOptions" [value]="p">{{ p || 'Tous les profils' }}</option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn-filter-apply">
+                                <i class="bi bi-search"></i> Filtrer
+                            </button>
+                            <button type="button" class="btn-filter-reset" (click)="filterForm.reset(); onFilterChange()">
+                                <i class="bi bi-arrow-counterclockwise"></i> Réinitialiser
+                            </button>
+                            <button type="button" class="btn-filter-apply" style="background:#6a1b9a;" (click)="bulkApproveByProfile()">
+                                <i class="bi bi-check-all"></i> Approuver tout le profil
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <div class="batch-actions" *ngIf="selectedItems.size > 0">
+                    <button class="btn-filter-apply" style="background:#2e7d32;" (click)="bulkApproveSelected()">
+                        <i class="bi bi-check-circle"></i> Approuver ({{ selectedItems.size }})
+                    </button>
+                    <button class="btn-filter-reset" style="background:#ffebee; color:#c62828; border-color:#ffcdd2;" (click)="bulkRejectSelected()">
+                        <i class="bi bi-x-circle"></i> Rejeter ({{ selectedItems.size }})
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Tableau des recommandations ───────────────────────────────── -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="bi bi-table"></i> Liste des recommandations
+                    <span class="section-count">{{ totalCount }}</span>
+                </div>
+                <div class="page-size-selector">
+                    <label class="filter-label">Afficher :</label>
+                    <select class="filter-select filter-select-sm" (change)="onPageSizeChange($any($event.target).value)">
+                        <option *ngFor="let size of pageSizes" [value]="size" [selected]="size === pageSize">{{ size }}</option>
+                    </select>
+                </div>
+            </div>
+
+            <table class="data-table" *ngIf="paginatedRecommendations.length > 0">
+                <thead>
+                <tr>
+                    <th style="width: 32px;"><input type="checkbox" (change)="toggleSelectAll($event)" [checked]="isAllSelected"></th>
+                    <th><i class="bi bi-person-badge"></i> Profil</th>
+                    <th><i class="bi bi-tag"></i> Offre</th>
+                    <th><i class="bi bi-graph-up"></i> Score</th>
+                    <th><i class="bi bi-circle-half"></i> Statut</th>
+                    <th><i class="bi bi-calendar3"></i> Créé le</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr *ngFor="let reco of paginatedRecommendations">
+                    <td><input type="checkbox" [(ngModel)]="reco.selected" (change)="onSelectionChange()"></td>
+                    <td>{{ reco.profileName }}</td>
+                    <td class="offer-title"><strong>{{ reco.offerTitle }}</strong></td>
+                    <td>
+              <span class="pct-badge" [class.pct-cashback]="reco.score >= 0.7" [class.pct-discount]="reco.score < 0.4"
+                    [style.background]="reco.score >= 0.7 ? '#e8f5e9' : (reco.score < 0.4 ? '#ffebee' : '#fff3e0')"
+                    [style.color]="reco.score >= 0.7 ? '#2e7d32' : (reco.score < 0.4 ? '#c62828' : '#e65100')">
+                {{ reco.score | number:'1.2-2' }}
+              </span>
+                    </td>
+                    <td>
+              <span class="status-badge"
+                    [class.status-active]="reco.status === 'APPROVED'"
+                    [class.status-inactive]="reco.status === 'REJECTED'"
+                    [style.background]="reco.status === 'PENDING' ? '#fff3e0' : ''"
+                    [style.color]="reco.status === 'PENDING' ? '#e65100' : ''">
+                <i class="bi" [class.bi-check-circle-fill]="reco.status === 'APPROVED'"
+                   [class.bi-x-circle-fill]="reco.status === 'REJECTED'"
+                   [class.bi-hourglass-split]="reco.status === 'PENDING'"></i>
+                  {{ reco.status }}
+              </span>
+                    </td>
+                    <td>{{ reco.generatedAt | date:'dd/MM/yyyy' }}</td>
+                    <td>
+                        <button class="detail-btn" (click)="viewDetails(reco)">
+                            <i class="bi bi-eye"></i> Détails
+                        </button>
+                        <button *ngIf="reco.status === 'PENDING'" class="detail-btn" style="background:#e8f5e9; color:#2e7d32;"
+                                (click)="approveSingle(reco.id)">
+                            <i class="bi bi-check-lg"></i>
+                        </button>
+                        <button *ngIf="reco.status === 'PENDING'" class="detail-btn" style="background:#ffebee; color:#c62828;"
+                                (click)="rejectSingle(reco.id)">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                        <!-- ★ NOUVEAU — Diffuser au profil via FCM topic (recos APPROUVÉES) -->
+                        <button *ngIf="reco.status === 'APPROVED'" class="detail-btn"
+                                style="background:#e3f2fd; color:#1565c0;"
+                                [title]="'Diffuser au profil ' + (reco.clusterId ?? reco.profileName) + ' via FCM'"
+                                (click)="sendToProfileSingle(reco)">
+                            <i class="bi bi-send"></i> Envoyer au profil
+                        </button>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+            <div class="empty-state" *ngIf="paginatedRecommendations.length === 0">
+                <i class="bi bi-inbox"></i>
+                <span>Aucune recommandation trouvée.</span>
+            </div>
+
+            <div *ngIf="totalPages > 1" class="pagination">
+                <button class="page-btn" [disabled]="currentPage === 0" (click)="onPageChange(currentPage - 1)">
+                    <i class="bi bi-chevron-left"></i> Précédent
+                </button>
+                <span class="page-info">Page {{ currentPage + 1 }} / {{ totalPages }}</span>
+                <button class="page-btn" [disabled]="currentPage >= totalPages - 1" (click)="onPageChange(currentPage + 1)">
+                    Suivant <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Alertes métier — Expansion Panel ─────────────────────────── -->
+        <div class="expansion-panel" [class.panel-open]="alertsExpanded">
+            <div class="expansion-header" (click)="alertsExpanded = !alertsExpanded">
+                <div class="section-title">
+                    <i class="bi bi-exclamation-triangle-fill"
+                       [style.color]="alertMessages.length > 0 ? '#e65100' : '#2e7d32'"></i>
+                    Alertes métier
+                    <span class="alerts-count-badge" *ngIf="alertMessages.length > 0">
+            {{ alertMessages.length }}
+          </span>
+                    <span class="alerts-ok-badge" *ngIf="alertMessages.length === 0">
+            <i class="bi bi-check2"></i> Aucune alerte
+          </span>
+                </div>
+                <i class="bi expansion-chevron"
+                   [class.bi-chevron-down]="!alertsExpanded"
+                   [class.bi-chevron-up]="alertsExpanded"></i>
+            </div>
+            <div class="expansion-body">
+                <div class="alerts-body" *ngIf="alertMessages.length > 0">
+                    <div *ngFor="let alert of alertMessages"
+                         class="alert-item"
+                         [class.alert-warning]="alert.severity === 'warning'"
+                         [class.alert-critical]="alert.severity === 'critical'">
+                        <i class="bi" [class.bi-exclamation-circle]="alert.severity === 'warning'"
+                           [class.bi-x-octagon-fill]="alert.severity === 'critical'"></i>
+                        <span>{{ alert.message }}</span>
+                    </div>
+                </div>
+                <div class="empty-alerts" *ngIf="alertMessages.length === 0">
+                    <i class="bi bi-check2-all"></i>
+                    <span>Aucune alerte active pour le moment.</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

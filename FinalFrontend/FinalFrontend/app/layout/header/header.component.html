@@ -1,0 +1,95 @@
+<nav class="navbar">
+
+    <!-- Logo -->
+    <div class="nav-brand">
+        <div class="brand-icon">
+            <i class="bi bi-wallet2"></i>
+        </div>
+        <div class="brand-text">
+            <span class="brand-name">SmartWallet</span>
+            <span class="brand-tag">IZI Pay</span>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav-links">
+
+        <a class="nav-item" routerLink="/layout/dashboard" routerLinkActive="active">
+            <i class="bi bi-grid"></i>
+            <span>Dashboard</span>
+        </a>
+
+        <a class="nav-item" routerLink="/layout/client/clients" routerLinkActive="active">
+            <i class="bi bi-people"></i>
+            <span>Clients</span>
+        </a>
+
+        <a class="nav-item" routerLink="/layout/analyse/global" routerLinkActive="active">
+            <i class="bi bi-graph-up"></i>
+            <span>Utilisation</span>
+        </a>
+
+        <a class="nav-item" routerLink="/layout/provider/providers" routerLinkActive="active">
+            <i class="bi bi-buildings"></i>
+            <span>Fournisseurs</span>
+        </a>
+
+        <a class="nav-item" routerLink="/layout/profile/profiles" routerLinkActive="active">
+            <i class="bi bi-person-badge"></i>
+            <span>Profils</span>
+        </a>
+
+        <!-- Dropdown : Recommandations -->
+        <div class="dropdown" [class.active]="isDropdownActive('recommendation')">
+            <a class="dropdown-main" routerLink="/layout/recommendation/recommendations" routerLinkActive="active">
+                <i class="bi bi-lightbulb"></i>
+                <span>Recommandation</span>
+            </a>
+            <button class="dropdown-arrow-btn" (click)="toggleDropdown($event)">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu" [class.show]="dropdownOpen">
+                <a class="dropdown-item" routerLink="/layout/recommendation/recommendations" routerLinkActive="active-link">
+                    <i class="bi bi-list-check"></i> Toutes les recommandations
+                </a>
+                <a class="dropdown-item" routerLink="/layout/recommendation/offers" routerLinkActive="active-link">
+                    <i class="bi bi-tag"></i> Offres
+                </a>
+            </div>
+        </div>
+
+        <a class="nav-item" routerLink="/layout/models" routerLinkActive="active">
+            <i class="bi bi-lightning-charge"></i>
+            <span>AI Dashboard</span>
+        </a>
+    </div>
+
+    <!-- Droite : user menu -->
+    <div class="nav-right">
+        <div class="nav-user-menu" [class.open]="userMenuOpen">
+            <button class="user-btn" (click)="toggleUserMenu($event)">
+                <div class="user-avatar">{{ userInitials }}</div>
+                <div class="user-info">
+                    <span class="user-name">{{ userName }}</span>
+                    <span class="user-role">Admin</span>
+                </div>
+                <i class="bi bi-chevron-down user-chevron"></i>
+            </button>
+
+            <div class="user-dropdown" [class.show]="userMenuOpen">
+                <div class="user-dropdown__header">
+                    <div class="user-avatar large">{{ userInitials }}</div>
+                    <div>
+                        <div class="user-dropdown__name">{{ userName }}</div>
+                        <div class="user-dropdown__email">admin&#64;admin.com</div>
+                    </div>
+                </div>
+                <div class="user-dropdown__divider"></div>
+                <button class="user-dropdown__item logout" (click)="logout()">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Déconnexion</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</nav>

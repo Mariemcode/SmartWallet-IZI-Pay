@@ -1,0 +1,591 @@
+<div class="rml-page">
+
+    <!-- ═══════════════ HEADER ═══════════════ -->
+    <header class="rml-header">
+        <div>
+            <h1>IA Forecasting & Prévisions</h1>
+            <p class="rml-subtitle">
+                Surveillance des modèles ML, comparaison PKL vs Live, peer-comparison,
+                OCR et planification des jobs cron.
+            </p>
+        </div>
+        <div class="rml-header-actions">
+            <button class="rml-btn-primary" (click)="doRetrain()" [disabled]="retraining || retrainSt?.status === 'running'">
+                <i class="bi" [class.bi-arrow-repeat]="!retraining" [class.bi-hourglass-split]="retraining"></i>
+                {{ retraining || retrainSt?.status === 'running' ? 'Réentraînement…' : 'Lancer retrain' }}
+            </button>
+        </div>
+    </header>
+
+    <!-- ═══════════════ KPI HERO STRIP ═══════════════ -->
+    <section class="rml-kpi-row">
+
+        <!-- Santé globale -->
+        <div class="rml-kpi"
+             [class.rml-kpi-good]="health?.status === 'UP'"
+             [class.rml-kpi-warn]="health?.status === 'DEGRADED'"
+             [class.rml-kpi-bad]="health?.status === 'DOWN' || !health">
+            <div class="rml-kpi-icon">
+                <i class="bi"
+                   [class.bi-check-circle-fill]="health?.status === 'UP'"
+                   [class.bi-exclamation-triangle-fill]="health?.status === 'DEGRADED'"
+                   [class.bi-x-circle-fill]="health?.status === 'DOWN' || !health"></i>
+            </div>
+            <div>
+                <div class="rml-kpi-label">Service ML</div>
+                <div class="rml-kpi-value">{{ health?.status || 'DOWN' }}</div>
+                <div class="rml-kpi-hint">Version {{ health?.version || '—' }}</div>
+            </div>
+        </div>
+
+        <!-- MAE Live -->
+        <div class="rml-kpi rml-kpi-blue">
+            <div class="rml-kpi-icon"><i class="bi bi-speedometer2"></i></div>
+            <div>
+                <div class="rml-kpi-label">MAE Live (30j)</div>
+                <div class="rml-kpi-value">{{ fmtTnd(liveMon?.mae_live) }}</div>
+                <div class="rml-kpi-hint">Réel en production</div>
+            </div>
+        </div>
+
+
+
+        <!-- Module 6 -->
+        <div class="rml-kpi rml-kpi-green">
+            <div class="rml-kpi-icon"><i class="bi bi-people-fill"></i></div>
+            <div>
+                <div class="rml-kpi-label">Clients profilés</div>
+                <div class="rml-kpi-value">{{ recoStats?.total_clients_profiles ?? recoMeta?.n_clients ?? '—' }}</div>
+                <div class="rml-kpi-hint">{{ recoMeta?.n_clusters ?? '—' }} clusters</div>
+            </div>
+        </div>
+
+        <!-- Schedulers actifs -->
+        <div class="rml-kpi rml-kpi-cyan">
+            <div class="rml-kpi-icon"><i class="bi bi-clock-history"></i></div>
+            <div>
+                <div class="rml-kpi-label">Jobs cron actifs</div>
+                <div class="rml-kpi-value">{{ schedulers.length }}</div>
+                <div class="rml-kpi-hint">Voir l'onglet Schedulers</div>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ═══════════════ ALERTE DÉGRADATION ═══════════════ -->
+    <div *ngIf="hasDegradationAlerts" class="rml-alert rml-alert-warn">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div>
+            <strong>Dégradation détectée par le scheduler `monitor_performance` :</strong>
+            <ul class="rml-alert-list">
+                <li *ngFor="let a of metrics?.degradation_alerts">{{ a }}</li>
+            </ul>
+            <small>→ Lance un retrain pour rafraîchir les modèles.</small>
+        </div>
+    </div>
+
+    <div *ngIf="retrainMsg" class="rml-alert"
+         [class.rml-alert-success]="retrainMsg.includes('succès')"
+         [class.rml-alert-error]="retrainMsg.includes('Erreur') || retrainMsg.includes('Échec')">
+        <i class="bi bi-info-circle-fill"></i> {{ retrainMsg }}
+    </div>
+
+    <!-- ═══════════════ TABS ═══════════════ -->
+    <nav class="rml-tabs">
+        <button [class.active]="activeTab === 'overview'" (click)="setTab('overview')">
+            <i class="bi bi-grid"></i> Vue d'ensemble
+        </button>
+        <button [class.active]="activeTab === 'pkl_vs_live'" (click)="setTab('pkl_vs_live')">
+            <i class="bi bi-bar-chart-line"></i> PKL vs Live
+        </button>
+        <button [class.active]="activeTab === 'peer'" (click)="setTab('peer')">
+            <i class="bi bi-people"></i> Peer-Comparison
+        </button>
+        <button [class.active]="activeTab === 'ocr'" (click)="setTab('ocr')">
+            <i class="bi bi-camera"></i> OCR
+        </button>
+        <button [class.active]="activeTab === 'schedulers'" (click)="setTab('schedulers')">
+            <i class="bi bi-clock-history"></i> Schedulers
+            <span class="rml-badge">{{ schedulers.length }}</span>
+        </button>
+        <button [class.active]="activeTab === 'history'" (click)="setTab('history')">
+            <i class="bi bi-clock"></i> Historique retrain
+        </button>
+    </nav>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB : VUE D'ENSEMBLE
+         ════════════════════════════════════════════════════════════ -->
+    <section *ngIf="activeTab === 'overview'" class="rml-tab-content">
+
+
+        <!-- Performance par fournisseur (R² + MAE PKL) -->
+        <div class="rml-card">
+            <h3><i class="bi bi-bar-chart"></i> Performance par fournisseur (offline / PKL)</h3>
+            <div *ngIf="loadM" class="rml-empty">Chargement…</div>
+            <table *ngIf="!loadM && metrics" class="rml-table">
+                <thead><tr>
+                    <th>Fournisseur</th><th>R² PKL</th><th>Seuil</th>
+                    <th>MAE PKL</th><th>RMSE</th><th>Confiance</th>
+                </tr></thead>
+                <tbody>
+                <tr *ngFor="let bill of BILLS">
+                    <td><code>{{ bill }}</code></td>
+                    <td>
+              <span [style.color]="r2Color(metrics.billMetrics?.[bill]?.r2 ?? 0)" style="font-weight: 700">
+                {{ (metrics.billMetrics?.[bill]?.r2 ?? 0).toFixed(3) }}
+              </span>
+                    </td>
+                    <td class="rml-muted">≥ {{ getThreshold(bill).toFixed(2) }}</td>
+                    <td>{{ fmtTnd(metrics.billMetrics?.[bill]?.mae) }}</td>
+                    <td>{{ fmtTnd(metrics.billMetrics?.[bill]?.rmse) }}</td>
+                    <td>
+              <span class="rml-pill"
+                    [style.background]="(metrics.billMetrics?.[bill]?.r2Ok ? '#10b981' : '#ef4444') + '20'"
+                    [style.color]="metrics.billMetrics?.[bill]?.r2Ok ? '#10b981' : '#ef4444'">
+                {{ metrics.billMetrics?.[bill]?.confidenceLabel }}
+              </span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Chart 30j -->
+        <div class="rml-card">
+            <h3><i class="bi bi-graph-up"></i> Évolution R² + MAE sur 30 jours</h3>
+            <div class="rml-chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB : PKL vs LIVE
+         ════════════════════════════════════════════════════════════ -->
+    <section *ngIf="activeTab === 'pkl_vs_live'" class="rml-tab-content">
+
+        <!-- ★ v7 — STATUS AUDIT + BOUTON ÉVALUER -->
+        <div class="rml-card">
+            <div class="rml-card-header">
+                <h3><i class="bi bi-clipboard-data"></i> Audit log — État de la collecte</h3>
+                <button class="rml-btn-primary" (click)="doEvaluateAudit()" [disabled]="evaluating">
+                    <i class="bi" [class.bi-magic]="!evaluating" [class.bi-hourglass-split]="evaluating"></i>
+                    {{ evaluating ? 'Évaluation en cours…' : 'Évaluer les prédictions maintenant' }}
+                </button>
+                <button class="rml-btn-primary" style="margin-left:8px;background:#f59e0b"
+                        (click)="checkNow(false)" [disabled]="checking">
+                    <i class="bi bi-activity"></i>
+                    {{ checking ? 'Vérification…' : 'Vérifier la dégradation' }}
+                </button>
+            </div>
+            <div *ngIf="evaluateMsg" class="rml-alert"
+                 [class.rml-alert-success]="!evaluateMsg.includes('Erreur')"
+                 [class.rml-alert-error]="evaluateMsg.includes('Erreur')">
+                {{ evaluateMsg }}
+            </div>
+
+            <div *ngIf="auditStatusData" class="rml-stats-grid">
+                <div class="rml-stat">
+                    <i class="bi bi-database" style="color:#6366f1"></i>
+                    <div>
+                        <strong>{{ auditStatusData.total_snapshots }}</strong>
+                        <small>snapshots total</small>
+                    </div>
+                </div>
+                <div class="rml-stat">
+                    <i class="bi bi-hourglass" style="color:#f59e0b"></i>
+                    <div>
+                        <strong>{{ auditStatusData.pending_evaluation }}</strong>
+                        <small>en attente d'évaluation</small>
+                    </div>
+                </div>
+                <div class="rml-stat">
+                    <i class="bi bi-check2-circle" style="color:#10b981"></i>
+                    <div>
+                        <strong>{{ auditStatusData.evaluated_paye }}</strong>
+                        <small>évalués → PAYÉ</small>
+                    </div>
+                </div>
+                <div class="rml-stat">
+                    <i class="bi bi-x-circle" style="color:#ef4444"></i>
+                    <div>
+                        <strong>{{ auditStatusData.evaluated_non_paye }}</strong>
+                        <small>évalués → NON PAYÉ</small>
+                    </div>
+                </div>
+                <div class="rml-stat" *ngIf="auditStatusData.oldest_pending">
+                    <i class="bi bi-clock-history" style="color:#a855f7"></i>
+                    <div>
+                        <strong>{{ auditStatusData.oldest_pending }}</strong>
+                        <small>plus ancien pending</small>
+                    </div>
+                </div>
+            </div>
+
+            <p *ngIf="(auditStatusData?.pending_evaluation ?? 0) === 0 && (auditStatusData?.total_snapshots ?? 0) === 0"
+               class="rml-empty" style="margin-top: 14px">
+                <i class="bi bi-info-circle"></i>
+                <strong>Aucune prédiction n'a encore été snapshottée.</strong>
+                Les snapshots sont créés automatiquement quand un client mobile consulte ses prévisions.
+                Demande à un client de tester l'app, puis reviens ici et clique sur "Évaluer maintenant".
+            </p>
+        </div>
+
+        <div class="rml-card">
+            <h3><i class="bi bi-arrow-left-right"></i> Comparaison MAE Offline (PKL) vs Live</h3>
+            <p class="rml-info">
+                <strong>MAE PKL</strong> = erreur calculée lors de l'entraînement, sur le jeu de test.
+                <strong>MAE Live</strong> = erreur réelle observée en production sur les 90 derniers jours
+                (depuis <code>prediction_audit_logs</code>).
+                Si MAE Live ≫ MAE PKL → le modèle s'est dégradé → retrain recommandé.
+            </p>
+            <div class="rml-chart-container rml-chart-tall">
+                <canvas id="maeComparisonChart"></canvas>
+            </div>
+        </div>
+
+        <div class="rml-card">
+            <h3><i class="bi bi-table"></i> Détail par fournisseur</h3>
+            <table class="rml-table">
+                <thead><tr>
+                    <th>Fournisseur</th>
+                    <th>MAE PKL (offline)</th>
+                    <th>MAE Live (90j)</th>
+                    <th>Nb confirmées</th>
+                    <th>Ratio Live/PKL</th>
+                    <th>État</th>
+                </tr></thead>
+                <tbody>
+                <tr *ngFor="let bill of BILLS">
+                    <td><code>{{ bill }}</code></td>
+                    <td>{{ fmtTnd(metrics?.billMetrics?.[bill]?.mae) }}</td>
+                    <td>{{ fmtTnd(liveFour(bill)?.mae_live) }}</td>
+                    <td>{{ liveFour(bill)?.nb_confirmees ?? 0 }}</td>
+                    <td>
+                        <ng-container *ngIf="degradationRatio(bill) as d">
+                <span [style.color]="d.color" style="font-weight: 700">
+                  × {{ d.ratio.toFixed(2) }}
+                </span>
+                        </ng-container>
+                        <span *ngIf="!degradationRatio(bill)" class="rml-muted">—</span>
+                    </td>
+                    <td>
+                        <ng-container *ngIf="degradationRatio(bill) as d">
+                <span class="rml-pill"
+                      [style.background]="d.color + '20'"
+                      [style.color]="d.color">{{ d.level }}</span>
+                        </ng-container>
+                        <span *ngIf="!degradationRatio(bill)" class="rml-muted">—</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB : PEER-COMPARISON (Module 6)
+         ════════════════════════════════════════════════════════════ -->
+    <section *ngIf="activeTab === 'peer'" class="rml-tab-content">
+
+        <div class="rml-card">
+            <h3><i class="bi bi-people-fill"></i> Module 6 — Recommandations peer-comparison</h3>
+            <p class="rml-info">
+                Système de recommandations basé sur la comparaison de chaque client à ses pairs
+                (clients d'un même cluster comportemental).
+            </p>
+            <div class="rml-stats-grid">
+                <div class="rml-stat">
+                    <i class="bi bi-people" style="color:#6366f1"></i>
+                    <div>
+                        <strong>{{ recoStats?.total_clients_profiles ?? '—' }}</strong>
+                        <small>clients profilés</small>
+                    </div>
+                </div>
+                <div class="rml-stat">
+                    <i class="bi bi-exclamation-triangle" style="color:#ef4444"></i>
+                    <div>
+                        <strong>{{ recoStats?.total_alerts ?? '—' }}</strong>
+                        <small>alertes Z-Score</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rml-card">
+            <h3><i class="bi bi-pie-chart-fill"></i> Répartition par cluster</h3>
+            <div class="rml-chart-container">
+                <canvas id="clusterChart"></canvas>
+            </div>
+        </div>
+
+        <div class="rml-card" *ngIf="recoMeta">
+            <h3><i class="bi bi-info-circle"></i> Métadonnées du modèle</h3>
+            <table class="rml-table-kv">
+                <tr><td>Score silhouette</td>
+                    <td>
+                        <code>{{ recoMeta.silhouette_score?.toFixed(3) ?? '—' }}</code>
+                        <small *ngIf="(recoMeta.silhouette_score ?? 0) >= 0.5" class="rml-muted">— bonne séparation</small>
+                        <small *ngIf="(recoMeta.silhouette_score ?? 0) < 0.5" class="rml-muted">— séparation moyenne</small>
+                    </td></tr>
+                <tr><td>Généré le</td>
+                    <td>{{ fmtDate(recoMeta.generated_at) }}</td></tr>
+                <tr><td>Noms des clusters</td>
+                    <td>
+              <span *ngFor="let kv of recoMeta.cluster_names | keyvalue"
+                    class="rml-pill rml-pill-cluster">
+                {{ kv.key }} — {{ kv.value }}
+              </span>
+                    </td></tr>
+            </table>
+        </div>
+
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB : OCR
+         ════════════════════════════════════════════════════════════ -->
+    <section *ngIf="activeTab === 'ocr'" class="rml-tab-content">
+
+
+        <!-- ★ v7 — STATS OCR SPRING DIRECT -->
+        <div class="rml-card" *ngIf="ocrStatsV2">
+            <h3><i class="bi bi-database"></i> Stats Spring (direct DB, toujours à jour)</h3>
+            <div class="rml-stats-grid">
+                <div class="rml-stat">
+                    <i class="bi bi-camera-reels" style="color:#6366f1"></i>
+                    <div>
+                        <strong>{{ ocrStatsV2.total_factures_scannees }}</strong>
+                        <small>factures scannées</small>
+                    </div>
+                </div>
+                <div class="rml-stat">
+                    <i class="bi bi-chat-square-text" style="color:#a855f7"></i>
+                    <div>
+                        <strong>{{ ocrStatsV2.total_feedbacks }}</strong>
+                        <small>feedbacks utilisateurs</small>
+                    </div>
+                </div>
+                <div class="rml-stat">
+                    <i class="bi bi-check-circle" style="color:#10b981"></i>
+                    <div>
+                        <strong>{{ ocrStatsV2.taux_succes_pct }}%</strong>
+                        <small>taux de succès</small>
+                    </div>
+                </div>
+                <div class="rml-stat">
+                    <i class="bi bi-clock" style="color:#f59e0b"></i>
+                    <div>
+                        <strong>{{ ocrStatsV2.factures_non_payees }}</strong>
+                        <small>non payées</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ★ v7 — TABLE FACTURES SCANNÉES -->
+        <div class="rml-card">
+            <div class="rml-card-header">
+                <h3><i class="bi bi-receipt"></i> Factures scannées récentes</h3>
+                <button class="rml-btn-secondary" (click)="loadScannedFactures()" [disabled]="loadScans">
+                    <i class="bi" [class.bi-arrow-clockwise]="!loadScans" [class.bi-hourglass]="loadScans"></i>
+                    Actualiser
+                </button>
+            </div>
+            <div *ngIf="loadScans" class="rml-empty">Chargement…</div>
+            <div *ngIf="!loadScans && scannedFactures.length === 0" class="rml-empty">
+                <i class="bi bi-receipt-cutoff"></i>
+                <p><strong>Aucune facture scannée</strong></p>
+                <small>Quand un client mobile clique sur "Planifier rappel", la facture apparaît ici.</small>
+            </div>
+            <table *ngIf="scannedFactures.length > 0" class="rml-table">
+                <thead><tr>
+                    <th>Quand</th><th>Client</th><th>Fournisseur</th>
+                    <th>Montant</th><th>Échéance</th><th>État</th><th>Rappels</th>
+                </tr></thead>
+                <tbody>
+                <tr *ngFor="let f of scannedFactures">
+                    <td><span class="rml-muted">{{ fmtDate(f.created_at) }}</span></td>
+                    <td><code>{{ f.client_id?.substring(0, 10) }}…</code></td>
+                    <td>
+                        <code>{{ f.fournisseur_label }}</code>
+                        <small *ngIf="f.fournisseur_nom && f.fournisseur_nom !== f.fournisseur_label"
+                               class="rml-muted">{{ f.fournisseur_nom }}</small>
+                    </td>
+                    <td><strong>{{ fmtTnd(f.montant) }}</strong></td>
+                    <td>{{ f.date_echeance }}</td>
+                    <td>
+                        <span class="rml-pill"
+                              [style.background]="(f.paye ? '#10b981' : '#f59e0b') + '20'"
+                              [style.color]="f.paye ? '#10b981' : '#f59e0b'">
+                            {{ f.paye ? 'PAYÉE' : 'EN ATTENTE' }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="rml-pill-mini" *ngIf="f.rappel_j7">J-7 ✓</span>
+                        <span class="rml-pill-mini" *ngIf="f.rappel_j3">J-3 ✓</span>
+                        <span class="rml-pill-mini" *ngIf="f.rappel_j1">J-1 ✓</span>
+                        <span class="rml-pill-mini" *ngIf="f.rappel_j0">J0 ✓</span>
+                        <span *ngIf="!f.rappel_j7 && !f.rappel_j3 && !f.rappel_j1 && !f.rappel_j0"
+                              class="rml-muted">—</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ★ v7 — TABLE FEEDBACKS OCR -->
+        <div class="rml-card">
+            <div class="rml-card-header">
+                <h3><i class="bi bi-chat-square-dots"></i> Feedbacks OCR utilisateurs récents</h3>
+                <button class="rml-btn-secondary" (click)="loadOcrFeedbacks()" [disabled]="loadFeedbacks">
+                    <i class="bi" [class.bi-arrow-clockwise]="!loadFeedbacks" [class.bi-hourglass]="loadFeedbacks"></i>
+                    Actualiser
+                </button>
+            </div>
+            <p class="rml-info">
+                Chaque feedback trace les corrections que l'utilisateur a faites par rapport à l'OCR brut.
+                Ces données alimentent l'auto-apprentissage du modèle OCR.
+            </p>
+            <div *ngIf="loadFeedbacks" class="rml-empty">Chargement…</div>
+            <div *ngIf="!loadFeedbacks && ocrFeedbacks.length === 0" class="rml-empty">
+                <i class="bi bi-chat-square-text"></i>
+                <p><strong>Aucun feedback OCR</strong></p>
+                <small>Les corrections utilisateurs apparaîtront ici.</small>
+            </div>
+            <table *ngIf="ocrFeedbacks.length > 0" class="rml-table">
+                <thead><tr>
+                    <th>Quand</th><th>Client</th><th>OCR</th><th>User</th>
+                    <th>Corrections</th><th>Action</th>
+                </tr></thead>
+                <tbody>
+                <tr *ngFor="let f of ocrFeedbacks">
+                    <td><span class="rml-muted">{{ fmtDate(f.created_at) }}</span></td>
+                    <td><code>{{ f.client_id?.substring(0, 10) }}…</code></td>
+                    <td>
+                        <code>{{ f.ocr_fournisseur || '—' }}</code><br>
+                        <small class="rml-muted">{{ fmtTnd(f.ocr_montant) }} — {{ f.ocr_date_echeance || '—' }}</small>
+                    </td>
+                    <td>
+                        <code>{{ f.user_fournisseur || '—' }}</code><br>
+                        <small class="rml-muted">{{ fmtTnd(f.user_montant) }} — {{ f.user_date_echeance || '—' }}</small>
+                    </td>
+                    <td>
+                        <span class="rml-pill-mini" *ngIf="f.fournisseur_corrige"
+                              style="background:#fee2e2;color:#dc2626">fournisseur</span>
+                        <span class="rml-pill-mini" *ngIf="f.montant_corrige"
+                              style="background:#fee2e2;color:#dc2626">montant</span>
+                        <span class="rml-pill-mini" *ngIf="f.date_corrigee"
+                              style="background:#fee2e2;color:#dc2626">date</span>
+                        <span class="rml-pill-mini" *ngIf="f.reference_corrigee"
+                              style="background:#fee2e2;color:#dc2626">ref</span>
+                        <span class="rml-pill-mini" *ngIf="f.valide_sans_correction"
+                              style="background:#d1fae5;color:#047857">✓ Parfait</span>
+                    </td>
+                    <td>
+                        <span class="rml-pill"
+                              [style.background]="f.action_finale === 'paye' ? '#d1fae520' : '#f59e0b20'"
+                              [style.color]="f.action_finale === 'paye' ? '#047857' : '#92400e'">
+                            {{ f.action_finale }}
+                        </span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB : SCHEDULERS
+         ════════════════════════════════════════════════════════════ -->
+    <section *ngIf="activeTab === 'schedulers'" class="rml-tab-content">
+
+        <div class="rml-card">
+            <h3><i class="bi bi-clock-history"></i> Jobs cron actifs ({{ schedulers.length }})</h3>
+            <p class="rml-info">
+                Liste statique des tâches planifiées détectées dans le code source.
+                Pour vérifier qu'un job tourne, consulte les logs <code>application.log</code> du service Spring.
+            </p>
+
+            <div *ngIf="loadSched" class="rml-empty">Chargement…</div>
+
+            <div class="rml-schedulers" *ngIf="!loadSched">
+                <div *ngFor="let s of schedulers" class="rml-scheduler"
+                     [style.borderLeftColor]="categoryColor(s.category)">
+                    <div class="rml-scheduler-head">
+            <span class="rml-pill" [style.background]="categoryColor(s.category) + '20'"
+                  [style.color]="categoryColor(s.category)">
+              {{ s.category }}
+            </span>
+                        <span class="rml-scheduler-cron"><i class="bi bi-clock"></i> {{ s.cron_human }}</span>
+                    </div>
+                    <h4>{{ s.description }}</h4>
+                    <p class="rml-scheduler-impact">{{ s.impact }}</p>
+                    <div class="rml-scheduler-meta">
+                        <code>{{ s.class }}</code>
+                        <small>cron: <code class="rml-cron">{{ s.cron }}</code></small>
+                    </div>
+                    <button *ngIf="isRunnable(s.id)" class="rml-btn-primary"
+                            (click)="runJob(s.id)" [disabled]="runningJob === s.id"
+                            style="margin-top:10px;padding:6px 12px;font-size:.85rem">
+                        <i class="bi" [class.bi-play-fill]="runningJob !== s.id"
+                           [class.bi-hourglass-split]="runningJob === s.id"></i>
+                        {{ runningJob === s.id ? 'Exécution…' : 'Exécuter maintenant' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB : HISTORIQUE RETRAIN
+         ════════════════════════════════════════════════════════════ -->
+    <section *ngIf="activeTab === 'history'" class="rml-tab-content">
+
+        <div class="rml-card">
+            <div class="rml-card-header">
+                <h3><i class="bi bi-clock"></i> Historique des réentraînements</h3>
+                <button class="rml-btn-secondary" (click)="loadRetrainHistory()" [disabled]="retrainHistoryLoading">
+                    <i class="bi" [class.bi-arrow-clockwise]="!retrainHistoryLoading" [class.bi-hourglass]="retrainHistoryLoading"></i>
+                    Actualiser
+                </button>
+            </div>
+
+            <div *ngIf="retrainHistoryLoading" class="rml-empty">Chargement…</div>
+            <div *ngIf="!retrainHistoryLoading && retrainHistory.length === 0" class="rml-empty">
+                Aucun historique de retrain disponible.
+            </div>
+
+            <table *ngIf="retrainHistory.length > 0" class="rml-table">
+                <thead><tr>
+                    <th>Date</th><th>Statut</th><th>Durée</th>
+                    <th>Trigger</th><th>Modèles mis à jour</th>
+                </tr></thead>
+                <tbody>
+                <tr *ngFor="let h of retrainHistory">
+                    <td>{{ fmtDate(h.saved_at || h.timestamp) }}</td>
+                    <td>
+              <span class="rml-pill"
+                    [style.background]="(h.status === 'success' ? '#10b981' : '#ef4444') + '20'"
+                    [style.color]="h.status === 'success' ? '#10b981' : '#ef4444'">
+                {{ h.status }}
+              </span>
+                    </td>
+                    <td>{{ h.duration_sec ? h.duration_sec.toFixed(1) + ' s' : '—' }}</td>
+                    <td><code>{{ h.trigger || '—' }}</code></td>
+                    <td>
+                        <code class="rml-pill-mini" *ngFor="let p of (h.pkls_updated || [])">{{ p }}</code>
+                        <span *ngIf="!h.pkls_updated?.length" class="rml-muted">—</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+</div>

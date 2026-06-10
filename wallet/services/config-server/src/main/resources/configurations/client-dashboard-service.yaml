@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/client_bd
+    username: postgres
+    password: mariem
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      auto-commit: false
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+    database: postgresql
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+fastapi:
+  base-url: http://127.0.0.1:8000
+firebase:
+  credentials-path: C:/Users/MARIEM/Desktop/pfe/wallet/services/client-dashboard/serviceAccountKey.json
+  project-id: smartwallet-pfe
+server:
+  port: 8090

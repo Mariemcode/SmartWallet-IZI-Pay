@@ -1,0 +1,508 @@
+<div class="analysis-page">
+
+  <!-- ══ HEADER ════════════════════════════════════════════════════ -->
+  <div class="page-header">
+    <div class="header-left">
+      <span class="header-tag"><i class="bi bi-diagram-3"></i> PROFIL DÉTAIL</span>
+      <h1>
+        <span class="accent">{{ profile?.profile_name || '...' }}</span>
+        <span class="cluster-badge" [style.background]="getColor(profile?.cluster_id || 0)">
+          Cluster {{ profile?.cluster_id }}
+        </span>
+        <span class="fragile-badge" *ngIf="profile?.is_fragile">
+          <i class="bi bi-exclamation-triangle-fill"></i> Fragile
+        </span>
+      </h1>
+      <p class="subtitle" (click)="goBack()" style="cursor:pointer;">
+        <i class="bi bi-arrow-left-short"></i> Retour à la liste
+      </p>
+    </div>
+  </div>
+
+  <!-- ══ LOADER ════════════════════════════════════════════════════ -->
+  <div class="loader-wrap" *ngIf="loading">
+    <div class="loader-ring"></div>
+    <span>Chargement du profil...</span>
+  </div>
+
+  <!-- ══ ERROR ═════════════════════════════════════════════════════ -->
+  <div class="error-banner" *ngIf="error && !loading">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    Impossible de charger les détails du profil. Vérifiez votre connexion.
+  </div>
+
+  <!-- ══ DASHBOARD ═════════════════════════════════════════════════ -->
+  <div class="dashboard" *ngIf="profile && !loading">
+
+    <!-- ── ROW A : KPI cards + description ───────────────────────── -->
+    <div class="row-a">
+
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon-wrap"><i class="bi bi-people-fill"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Clients</div>
+          <div class="kpi-value">{{ formatNumber(profile.n_clients) }}</div>
+          <div class="kpi-sub">{{ profile.pct_clients }}% du portefeuille</div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-icon-wrap"><i class="bi bi-graph-up-arrow"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Silhouette</div>
+          <div class="kpi-value">{{ profile.sil_mean | number:'1.3-3' }}</div>
+          <div class="kpi-sub">min : {{ profile.sil_min | number:'1.3-3' }}</div>
+        </div>
+        <div class="sil-gauge">
+          <div class="sil-fill" [class.sil-fragile]="profile.is_fragile"
+               [style.width.%]="(profile.sil_mean + 1) / 2 * 100"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon-wrap"><i class="bi bi-activity"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Activité</div>
+          <div class="kpi-value act-sm">{{ profile.activity_level || '—' }}</div>
+          <div class="kpi-sub">Niveau global</div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-slate" *ngIf="transactionsCount">
+        <div class="kpi-icon-wrap"><i class="bi bi-receipt"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Transactions totales</div>
+          <div class="kpi-value">{{ formatNumber(transactionsCount.total_transactions) }}</div>
+          <div class="kpi-sub">moy. {{ formatNumber(transactionsCount.avg_transactions) }} / client</div>
+        </div>
+      </div>
+
+      <!-- Description + catégories dominantes -->
+      <div class="desc-card" [class.desc-full]="!transactionsCount">
+        <p class="desc-text">{{ profile.description || 'Aucune description disponible.' }}</p>
+        <div class="cat-pills">
+          <div class="cat-pill dominant">
+            <i class="bi bi-tag-fill"></i>
+            <span class="cat-name">{{ profile.dominant_category }}</span>
+            <span class="cat-ratio">ratio {{ profile.dominant_category_ratio | number:'1.2-2' }}</span>
+            <span class="cat-vs" *ngIf="profile.dominant_category_vs_global">
+              ×{{ profile.dominant_category_vs_global | number:'1.1-1' }} / global
+            </span>
+          </div>
+          <div class="cat-pill secondary" *ngIf="profile.secondary_category">
+            <i class="bi bi-tag"></i>
+            <span class="cat-name">{{ profile.secondary_category }}</span>
+            <span class="cat-tag">Secondaire</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ROW B : Churn & Rétention / LTV & Revenus ─────────────── -->
+    <div class="row-b">
+
+      <!-- Churn & Rétention -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title"><i class="bi bi-shield-exclamation"></i> Churn & Rétention</div>
+          <div class="risk-badge"
+               [class.risk-high]="(profile.score_risque || 0) > 0.6"
+               [class.risk-med]="(profile.score_risque || 0) > 0.3 && (profile.score_risque || 0) <= 0.6"
+               [class.risk-low]="(profile.score_risque || 0) <= 0.3">
+            <i class="bi bi-speedometer2"></i>
+            Risque : {{ (profile.score_risque || 0) | number:'1.2-2' }}
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="metric-group">
+
+            <div class="metric-row">
+              <div class="metric-meta">
+                <span class="metric-label">Churn 30j</span>
+                <span class="metric-chip chip-danger">{{ formatPercent(profile.churn_score_30j || 0) }}</span>
+              </div>
+              <div class="meter-track">
+                <div class="meter-fill fill-danger" [style.width.%]="(profile.churn_score_30j || 0) * 100"></div>
+              </div>
+            </div>
+
+            <div class="metric-row">
+              <div class="metric-meta">
+                <span class="metric-label">Churn 90j</span>
+                <span class="metric-chip chip-orange">{{ formatPercent(profile.churn_score_90j || 0) }}</span>
+              </div>
+              <div class="meter-track">
+                <div class="meter-fill fill-orange" [style.width.%]="(profile.churn_score_90j || 0) * 100"></div>
+              </div>
+            </div>
+
+            <div class="metric-row" *ngIf="profile.churn_pct_high_risk !== undefined">
+              <div class="metric-meta">
+                <span class="metric-label">% Haut risque</span>
+                <span class="metric-chip chip-danger">{{ formatPercent(profile.churn_pct_high_risk || 0) }}</span>
+              </div>
+              <div class="meter-track">
+                <div class="meter-fill fill-danger-faded" [style.width.%]="(profile.churn_pct_high_risk || 0) * 100"></div>
+              </div>
+            </div>
+
+            <div class="sep-thin"></div>
+
+            <div class="metric-row" *ngIf="profile.taux_retention !== undefined">
+              <div class="metric-meta">
+                <span class="metric-label">Rétention</span>
+                <span class="metric-chip chip-success">{{ formatPercent(profile.taux_retention || 0) }}</span>
+              </div>
+              <div class="meter-track">
+                <div class="meter-fill fill-success" [style.width.%]="(profile.taux_retention || 0) * 100"></div>
+              </div>
+            </div>
+
+            <div class="metric-row" *ngIf="profile.taux_activation !== undefined">
+              <div class="metric-meta">
+                <span class="metric-label">Activation</span>
+                <span class="metric-chip chip-blue">{{ formatPercent(profile.taux_activation || 0) }}</span>
+              </div>
+              <div class="meter-track">
+                <div class="meter-fill fill-blue" [style.width.%]="(profile.taux_activation || 0) * 100"></div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Tiles : hazard + croissance -->
+          <div class="stat-tiles">
+            <div class="stat-tile">
+              <div class="stat-tile-label">Hazard rate</div>
+              <div class="stat-tile-val warn">{{ (profile.hazard_rate || 0) | number:'1.4-4' }}</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-tile-label">Croissance 3m</div>
+              <div class="stat-tile-val"
+                   [class.pos]="(profile.growth_rate_3m || 0) > 0"
+                   [class.neg]="(profile.growth_rate_3m || 0) < 0">
+                <i class="bi"
+                   [class.bi-arrow-up-short]="(profile.growth_rate_3m || 0) > 0"
+                   [class.bi-arrow-down-short]="(profile.growth_rate_3m || 0) < 0"></i>
+                {{ formatPercent(Math.abs(profile.growth_rate_3m || 0)) }}
+              </div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-tile-label">Croissance 6m</div>
+              <div class="stat-tile-val"
+                   [class.pos]="(profile.growth_rate_6m || 0) > 0"
+                   [class.neg]="(profile.growth_rate_6m || 0) < 0">
+                <i class="bi"
+                   [class.bi-arrow-up-short]="(profile.growth_rate_6m || 0) > 0"
+                   [class.bi-arrow-down-short]="(profile.growth_rate_6m || 0) < 0"></i>
+                {{ formatPercent(Math.abs(profile.growth_rate_6m || 0)) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LTV & Revenus -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title"><i class="bi bi-currency-exchange"></i> LTV & Revenus</div>
+        </div>
+        <div class="section-body">
+
+          <div class="arpu-block">
+            <div class="arpu-main">
+              <div class="arpu-label">ARPU mensuel</div>
+              <div class="arpu-val">{{ formatCurrency(profile.arpu_mensuel || 0) }}</div>
+            </div>
+            <div class="arpu-annuel">
+              <div class="arpu-label">Annualisé (×12)</div>
+              <div class="arpu-val-sm">{{ formatCurrency((profile.arpu_mensuel || 0) * 12) }}</div>
+            </div>
+          </div>
+
+          <div class="ltv-table">
+            <div class="ltv-head">
+              <span></span>
+              <span>6 mois</span>
+              <span>12 mois</span>
+            </div>
+            <div class="ltv-row ltv-base">
+              <span class="ltv-scenario"><i class="bi bi-dash-circle-fill"></i> Base</span>
+              <span>{{ profile.ltv_6m_base ? formatCurrency(profile.ltv_6m_base) : '—' }}</span>
+              <span>{{ formatCurrency(profile.ltv_12m_base || 0) }}</span>
+            </div>
+            <div class="ltv-row ltv-opt">
+              <span class="ltv-scenario"><i class="bi bi-arrow-up-circle-fill"></i> Optimiste</span>
+              <span>—</span>
+              <span>{{ formatCurrency(profile.ltv_12m_optimiste || 0) }}</span>
+            </div>
+            <div class="ltv-row ltv-pes">
+              <span class="ltv-scenario"><i class="bi bi-arrow-down-circle-fill"></i> Pessimiste</span>
+              <span>—</span>
+              <span>{{ formatCurrency(profile.ltv_12m_pessimiste || 0) }}</span>
+            </div>
+          </div>
+
+          <div class="ltv-range-block"
+               *ngIf="profile.ltv_12m_pessimiste && profile.ltv_12m_optimiste && profile.ltv_12m_base">
+            <div class="ltv-range-label">Fourchette LTV 12m</div>
+            <div class="ltv-range-bar">
+              <div class="ltv-range-pes"  [style.flex]="ltvPesWidth(profile)"></div>
+              <div class="ltv-range-base" [style.flex]="ltvBaseWidth(profile)"></div>
+              <div class="ltv-range-opt"  [style.flex]="ltvOptWidth(profile)"></div>
+            </div>
+            <div class="ltv-range-legends">
+              <span class="ltv-leg-pes">{{ formatCurrency(profile.ltv_12m_pessimiste) }}</span>
+              <span class="ltv-leg-base">{{ formatCurrency(profile.ltv_12m_base) }}</span>
+              <span class="ltv-leg-opt">{{ formatCurrency(profile.ltv_12m_optimiste) }}</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ROW C : Catégories détaillées ──────────────────────────── -->
+    <div class="section-card" *ngIf="categories.length > 0">
+      <div class="section-header">
+        <div class="section-title"><i class="bi bi-pie-chart-fill"></i> Répartition par catégorie</div>
+        <div class="section-sub">{{ categories.length }} catégories actives</div>
+      </div>
+      <div class="categories-body">
+
+        <!-- Barres -->
+        <div class="cat-bars">
+          <div class="cat-bar-row" *ngFor="let cat of categories; let i = index">
+            <div class="cat-bar-meta">
+              <span class="cat-dot" [style.background]="getColor(i)"></span>
+              <span class="cat-bar-name">{{ cat.category }}</span>
+            </div>
+            <div class="cat-bar-track">
+              <div class="cat-bar-fill"
+                   [style.width.%]="cat.pct"
+                   [style.background]="getColor(i)"></div>
+            </div>
+            <div class="cat-bar-stats">
+              <span class="cat-bar-pct">{{ cat.pct | number:'1.1-1' }}%</span>
+              <span class="cat-bar-tx">{{ formatNumber(cat.nb_transactions) }} tx</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Donut SVG -->
+        <div class="cat-donut-wrap">
+          <svg viewBox="0 0 200 200" class="cat-donut-svg">
+            <circle cx="100" cy="100" r="70" fill="none" stroke="#f0f4fa" stroke-width="36"/>
+            <ng-container *ngFor="let cat of categories; let i = index">
+              <circle
+                cx="100" cy="100" r="70"
+                fill="none"
+                [attr.stroke]="getColor(i)"
+                stroke-width="36"
+                stroke-linecap="butt"
+                [attr.stroke-dasharray]="getDonutDash(cat.pct)"
+                [attr.stroke-dashoffset]="getDonutOffset(i)"
+                transform="rotate(-90 100 100)"
+                class="donut-arc"/>
+            </ng-container>
+            <text x="100" y="95" text-anchor="middle" class="donut-center-label">Top</text>
+            <text x="100" y="115" text-anchor="middle" class="donut-center-cat">
+              {{ categories[0]?.category | slice:0:8 }}
+            </text>
+          </svg>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── ROW D : Comportement moyen ────────────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title"><i class="bi bi-bar-chart-line"></i> Comportement moyen</div>
+        <div class="section-sub">Moyennes sur {{ formatNumber(profile.n_clients) }} clients</div>
+      </div>
+      <div class="section-body">
+        <div class="beh-grid">
+
+          <div class="beh-card">
+            <i class="bi bi-repeat beh-icon"></i>
+            <div class="beh-body">
+              <div class="beh-label">Transactions / mois</div>
+              <div class="beh-value">{{ formatNumber(profile.freq_mensuelle_mean || 0) }}</div>
+            </div>
+          </div>
+
+          <div class="beh-card">
+            <i class="bi bi-receipt-cutoff beh-icon"></i>
+            <div class="beh-body">
+              <div class="beh-label">Montant moyen</div>
+              <div class="beh-value">{{ formatCurrency(profile.montant_moyen_mean || 0) }}</div>
+            </div>
+          </div>
+
+          <div class="beh-card">
+            <i class="bi bi-wallet2 beh-icon"></i>
+            <div class="beh-body">
+              <div class="beh-label">Montant total</div>
+              <div class="beh-value">{{ formatCurrency(profile.montant_total_mean || 0) }}</div>
+            </div>
+          </div>
+
+          <div class="beh-card">
+            <i class="bi bi-clock-history beh-icon"></i>
+            <div class="beh-body">
+              <div class="beh-label">Récence</div>
+              <div class="beh-value">{{ (profile.recence_jours_mean || 0) | number:'1.0-0' }} j</div>
+            </div>
+          </div>
+
+          <div class="beh-card beh-scored">
+            <i class="bi bi-stars beh-icon"></i>
+            <div class="beh-body">
+              <div class="beh-label">Score RFM</div>
+              <div class="beh-value">{{ (profile.rfm_score_mean || 0) | number:'1.2-2' }}</div>
+              <div class="sbar-wrap"><div class="sbar blue" [style.width.%]="(profile.rfm_score_mean || 0) / 5 * 100"></div></div>
+              <div class="sbar-bounds"><span>0</span><span>5</span></div>
+            </div>
+          </div>
+
+          <div class="beh-card beh-scored">
+            <i class="bi bi-heart-pulse-fill beh-icon"></i>
+            <div class="beh-body">
+              <div class="beh-label">Score fidélité</div>
+              <div class="beh-value">{{ (profile.loyalty_score_mean || 0) | number:'1.2-2' }}</div>
+              <div class="sbar-wrap"><div class="sbar green" [style.width.%]="(profile.loyalty_score_mean || 0) * 100"></div></div>
+              <div class="sbar-bounds"><span>0</span><span>1</span></div>
+            </div>
+          </div>
+
+          <div class="beh-card beh-scored">
+            <i class="bi bi-sliders2 beh-icon"></i>
+            <div class="beh-body">
+              <div class="beh-label">Régularité</div>
+              <div class="beh-value">{{ (profile.regularite_mean || 0) | number:'1.3-3' }}</div>
+              <div class="sbar-wrap"><div class="sbar purple" [style.width.%]="(profile.regularite_mean || 0) * 100"></div></div>
+              <div class="sbar-bounds"><span>0</span><span>1</span></div>
+            </div>
+          </div>
+
+          <div class="beh-card">
+            <i class="bi bi-lightning-charge-fill beh-icon"></i>
+            <div class="beh-body">
+              <div class="beh-label">Momentum court</div>
+              <div class="beh-value"
+                   [class.pos]="(profile.momentum_court_mean || 0) > 1"
+                   [class.neg]="(profile.momentum_court_mean || 0) < 1">
+                {{ (profile.momentum_court_mean || 0) | number:'1.2-2' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="beh-card">
+            <i class="bi bi-lightning-fill beh-icon"></i>
+            <div class="beh-body">
+              <div class="beh-label">Momentum long</div>
+              <div class="beh-value"
+                   [class.pos]="(profile.momentum_long_mean || 0) > 1"
+                   [class.neg]="(profile.momentum_long_mean || 0) < 1">
+                {{ (profile.momentum_long_mean || 0) | number:'1.2-2' }}
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ROW E : Liste des clients du cluster ───────────────────── -->
+    <div class="section-card clients-section">
+      <div class="section-header">
+        <div class="section-title"><i class="bi bi-people-fill"></i> Clients du cluster</div>
+        <div class="section-sub" *ngIf="clientsPageInfo">
+          {{ clientsPageInfo.totalElements }} client(s) · Page {{ clientsPageInfo.number + 1 }} / {{ clientsPageInfo.totalPages }}
+        </div>
+      </div>
+
+      <div class="section-body" *ngIf="!clientsLoading; else loaderClients">
+        <div class="table-responsive" *ngIf="clients.length > 0; else noClients">
+          <table class="client-table">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Cluster</th>
+                <th>Profil final</th>
+                <th>Score confiance</th>
+                <th>Churn 30j</th>
+                <th>Segment churn</th>
+               </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let client of clients">
+                <td class="client-name">
+                  <i class="bi bi-person-circle"></i>
+                  {{ client.firstName }} {{ client.lastName }}<br>
+                  <span class="client-id">{{ client.clientId | slice:0:8 }}…</span>
+                </td>
+                <td><span class="cluster-badge mini">{{ client.clusterId }}</span></td>
+                <td><span class="profile-tag">{{ client.profileFinal || client.profileName }}</span></td>
+                <td>
+                  <div class="score-cell">
+                    {{ (client.confidenceScore * 100) | number:'1.0-0' }}%
+                    <div class="mini-meter" [style.width.%]="client.confidenceScore * 100"></div>
+                  </div>
+                </td>
+                <td>
+                  <div class="score-cell">
+                    {{ (client.churnScore30j * 100) | number:'1.0-0' }}%
+                    <div class="mini-meter churn" [style.width.%]="client.churnScore30j * 100"></div>
+                  </div>
+                </td>
+                <td>
+                  <span class="churn-badge" [class.high]="client.churnSegment === 'high'"
+                                         [class.medium]="client.churnSegment === 'medium'"
+                                         [class.low]="client.churnSegment === 'low'">
+                    {{ client.churnSegment || '—' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-controls" *ngIf="clientsPageInfo && clientsPageInfo.totalPages > 1">
+          <button class="pagination-btn" [disabled]="clientsPageInfo.first" (click)="goToPage(0)">
+            <i class="bi bi-chevron-double-left"></i>
+          </button>
+          <button class="pagination-btn" [disabled]="clientsPageInfo.first" (click)="goToPage(currentPage - 1)">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <span class="pagination-info">
+            Page {{ clientsPageInfo.number + 1 }} / {{ clientsPageInfo.totalPages }}
+          </span>
+          <button class="pagination-btn" [disabled]="clientsPageInfo.last" (click)="goToPage(currentPage + 1)">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+          <button class="pagination-btn" [disabled]="clientsPageInfo.last" (click)="goToPage(clientsPageInfo.totalPages - 1)">
+            <i class="bi bi-chevron-double-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <ng-template #loaderClients>
+        <div class="loader-inline">
+          <div class="loader-ring small"></div>
+          <span>Chargement des clients...</span>
+        </div>
+      </ng-template>
+
+      <ng-template #noClients>
+        <div class="empty-state">
+          <i class="bi bi-inbox"></i>
+          <p>Aucun client trouvé pour ce cluster.</p>
+        </div>
+      </ng-template>
+    </div>
+
+  </div>
+</div>

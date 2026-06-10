@@ -1,0 +1,62 @@
+{
+  "retrained_at": "2026-06-08T04:11:31.790516",
+  "fournisseurs": [
+    "TOPNET",
+    "BEE",
+    "SONEDE",
+    "STEG",
+    "TT",
+    "OOREDOO"
+  ],
+  "pkls": [
+    "classifier.pkl",
+    "factures_ref.pkl",
+    "features.pkl",
+    "gold_ids.pkl",
+    "habitudes_cli.pkl",
+    "ic_budget.pkl",
+    "kmeans.pkl",
+    "models_bill.pkl",
+    "models_budget.pkl",
+    "monthly.pkl",
+    "moyen_ids.pkl",
+    "profil_map.pkl",
+    "recharges_ref.pkl",
+    "reco_alerts.pkl",
+    "reco_budget_optim.pkl",
+    "reco_budget_targets.pkl",
+    "reco_cluster_medians.pkl",
+    "reco_cluster_names.pkl",
+    "reco_cluster_p25.pkl",
+    "reco_features.pkl",
+    "reco_iso_params.pkl",
+    "reco_profile_medians.pkl",
+    "reco_profile_p25.pkl",
+    "reco_recommendations.pkl",
+    "reco_scaler.pkl",
+    "results_bill.pkl",
+    "scaler.pkl",
+    "segment_map.pkl",
+    "umap.pkl"
+  ],
+  "nb_factures_ref": 17063,
+  "nb_recharges": 5296,
+  "nb_habitudes": 5314,
+  "gold_clients": 3078,
+  "moyen_clients": 1728,
+  "models_bill": [
+    "TOPNET",
+    "BEE",
+    "SONEDE",
+    "STEG",
+    "TT",
+    "OOREDOO"
+  ],
+  "models_budget": [
+    "Recharge Telephonique",
+    "Shopping & Paiements",
+    "Restaurants & Livraison",
+    "Voyages & Reservations"
+  ],
+  "module6_included": true
+}

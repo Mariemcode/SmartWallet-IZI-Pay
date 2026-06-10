@@ -1,0 +1,218 @@
+<div class="form-page">
+
+  <!-- ── Header ──────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+      <button class="btn-back" (click)="cancel()">
+        <i class="bi bi-arrow-left"></i> Retour
+      </button>
+      <div class="header-info">
+        <!-- <span class="header-tag"
+              [class.tag-create]="!isEditMode"
+              [class.tag-edit]="isEditMode">
+          <i class="bi" [class.bi-plus-lg]="!isEditMode" [class.bi-pencil]="isEditMode"></i>
+          {{ isEditMode ? 'MODIFICATION' : 'CRÉATION' }}
+        </span> -->
+        <h1>
+          {{ isEditMode ? 'Modifier l\'offre' : 'Nouvelle' }}
+          <span class="accent">{{ isEditMode ? '' : 'offre' }}</span>
+        </h1>
+        <span *ngIf="isEditMode && offerCode" class="offer-code-tag">
+          <i class="bi bi-upc"></i> {{ offerCode }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Loader ───────────────────────────────────────────────────── -->
+  <div class="loader-wrap" *ngIf="loading">
+    <div class="loader-ring"></div>
+    <span>{{ isEditMode ? 'Chargement de l\'offre…' : 'Chargement du formulaire…' }}</span>
+  </div>
+
+  <!-- ── Formulaire ───────────────────────────────────────────────── -->
+  <form *ngIf="!loading" [formGroup]="offerForm" (ngSubmit)="onSubmit()" novalidate class="form-body">
+
+    <!-- ── Section 1 : Informations générales ─────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-info-circle"></i> Informations générales
+        </div>
+      </div>
+      <div class="section-body">
+
+        <div class="form-group full-width">
+          <label for="title">Titre <span class="required">*</span></label>
+          <input
+            id="title"
+            type="text"
+            formControlName="title"
+            placeholder="Ex : Cashback 10% sur vos achats mode"
+            [class.input-error]="offerForm.get('title')?.invalid && offerForm.get('title')?.touched"
+          />
+          <div class="error-msg"
+               *ngIf="offerForm.get('title')?.invalid && offerForm.get('title')?.touched">
+            Le titre est obligatoire (max 300 caractères)
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="type">Type <span class="required">*</span></label>
+            <select
+              id="type"
+              formControlName="type"
+              [class.input-error]="offerForm.get('type')?.invalid && offerForm.get('type')?.touched">
+              <option value="">— Sélectionnez un type —</option>
+              <option *ngFor="let t of typeOptions" [value]="t">{{ t }}</option>
+            </select>
+            <div class="error-msg"
+                 *ngIf="offerForm.get('type')?.invalid && offerForm.get('type')?.touched">
+              Le type est obligatoire
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="providerName">Fournisseur</label>
+            <select id="providerName" formControlName="providerName">
+              <option value="">— Aucun fournisseur —</option>
+              <option *ngFor="let p of providerOptions" [value]="p">{{ p }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="category">Catégorie</label>
+            <select id="category" formControlName="category">
+              <option value="">— Aucune catégorie —</option>
+              <option *ngFor="let c of categoryOptions" [value]="c">{{ c }}</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Section 2 : Conditions financières ─────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-cash-stack"></i> Conditions financières
+        </div>
+      </div>
+      <div class="section-body">
+
+        <div class="form-row three-cols">
+
+          <div class="form-group">
+            <label for="discountPct">Remise <span class="required">*</span></label>
+            <div class="input-with-unit">
+              <input
+                id="discountPct"
+                type="number" step="0.01" min="0" max="100"
+                formControlName="discountPct"
+                [class.input-error]="offerForm.get('discountPct')?.invalid && offerForm.get('discountPct')?.touched"
+              />
+              <span class="unit">%</span>
+            </div>
+            <div class="error-msg"
+                 *ngIf="offerForm.get('discountPct')?.invalid && offerForm.get('discountPct')?.touched">
+              Valeur entre 0 et 100
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="minAmount">Montant minimum <span class="required">*</span></label>
+            <div class="input-with-unit">
+              <input
+                id="minAmount"
+                type="number" step="0.01" min="0"
+                formControlName="minAmount"
+                [class.input-error]="offerForm.get('minAmount')?.invalid && offerForm.get('minAmount')?.touched"
+              />
+              <span class="unit">TND</span>
+            </div>
+            <div class="error-msg"
+                 *ngIf="offerForm.get('minAmount')?.invalid && offerForm.get('minAmount')?.touched">
+              Doit être positif ou nul
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 3 : Ciblage ─────────────────────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-people"></i> Ciblage
+        </div>
+      </div>
+      <div class="section-body">
+
+        <div class="form-group full-width">
+          <label>
+            Profils cibles <span class="required">*</span>
+            <span class="label-hint">Ctrl+clic ou Cmd+clic pour sélection multiple</span>
+          </label>
+
+          <!-- Tags des profils sélectionnés -->
+          <div class="selected-tags"
+               *ngIf="offerForm.get('targetProfiles')?.value?.length > 0">
+            <span class="profile-tag"
+                  *ngFor="let p of offerForm.get('targetProfiles')?.value">
+              <i class="bi bi-person-fill"></i> {{ p }}
+            </span>
+          </div>
+
+          <select
+            formControlName="targetProfiles"
+            multiple
+            size="6"
+            [class.input-error]="offerForm.get('targetProfiles')?.invalid && offerForm.get('targetProfiles')?.touched">
+            <option *ngFor="let p of profileOptions" [value]="p">{{ p }}</option>
+          </select>
+
+          <div class="error-msg"
+               *ngIf="offerForm.get('targetProfiles')?.invalid && offerForm.get('targetProfiles')?.touched">
+            Sélectionnez au moins un profil cible
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Section 4 : Description ────────────────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-text-paragraph"></i> Description
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="form-group full-width">
+          <label for="description">Description de l'offre</label>
+          <textarea
+            id="description"
+            formControlName="description"
+            rows="4"
+            placeholder="Décrivez l'offre en détail : conditions, exclusions, durée…">
+          </textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Actions ─────────────────────────────────────────────────── -->
+    <div class="form-actions">
+      <button type="button" class="btn-cancel" (click)="cancel()">
+        <i class="bi bi-x-lg"></i> Annuler
+      </button>
+      <button type="submit" class="btn-submit" [disabled]="offerForm.invalid || loading">
+        <i class="bi" [class.bi-check-lg]="!isEditMode" [class.bi-floppy]="isEditMode"></i>
+        <span *ngIf="!loading">{{ isEditMode ? 'Mettre à jour' : 'Créer l\'offre' }}</span>
+        <span *ngIf="loading">Enregistrement…</span>
+      </button>
+    </div>
+
+  </form>
+</div>

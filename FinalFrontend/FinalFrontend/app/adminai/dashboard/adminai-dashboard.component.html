@@ -1,0 +1,499 @@
+<div class="ai-dashboard-page">
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- HEADER                                                     -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1>Administration <span class="accent">IA</span></h1>
+      <p class="subtitle">Gestion du moteur IA — mise à jour automatique toutes les 30 s</p>
+    </div>
+    <div class="header-right">
+      <span class="clock">{{ now | date:'HH:mm:ss' }}</span>
+    </div>
+  </div>
+
+  <!-- ── Onglets de navigation ── -->
+  <div class="ai-tabs">
+    <button *ngFor="let n of nav"
+            class="ai-tab"
+            [class.active]="page === n.id"
+            (click)="go(n.id)">
+      <i class="bi {{ n.icon }}"></i>
+      {{ n.label }}
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- PAGE : VUE IA (overview)                                  -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div *ngIf="page === 'overview'">
+
+    <!-- KPIs santé -->
+    <div class="kpi-row">
+
+      <!-- Santé ML -->
+      <div class="kpi-card" [class.kpi-green]="health?.status === 'UP'"
+                             [class.kpi-orange]="health?.status === 'DEGRADED'"
+                             [class.kpi-red]="health?.status === 'DOWN'">
+        <div class="kpi-icon-wrap"><i class="bi bi-heart-pulse"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Santé ML</div>
+          <div class="kpi-value" *ngIf="!loadH">
+            <span class="badge" [ngClass]="statusClass(health?.status || '')">
+              {{ health?.status || '—' }}
+            </span>
+          </div>
+          <div class="kpi-value" *ngIf="loadH"><span class="spinner"></span></div>
+          <div class="kpi-sub" *ngIf="health">v{{ health.version }}</div>
+        </div>
+      </div>
+
+      <!-- Modules chargés -->
+      <div class="kpi-card kpi-blue" *ngIf="health">
+        <div class="kpi-icon-wrap"><i class="bi bi-boxes"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Modules chargés</div>
+          <div class="kpi-value">{{ modulesLoaded(health) }}</div>
+          <div class="kpi-sub">
+            <span [class.text-ok]="health.modules.m1_factures" [class.text-err]="!health.modules.m1_factures">F</span>
+            <span [class.text-ok]="health.modules.m2_recharge" [class.text-err]="!health.modules.m2_recharge">R</span>
+            <span [class.text-ok]="health.modules.m3_budget"   [class.text-err]="!health.modules.m3_budget">B</span>
+            <span [class.text-ok]="health.modules.m4_habitudes"[class.text-err]="!health.modules.m4_habitudes">H</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommandations -->
+      <div class="kpi-card kpi-indigo" *ngIf="recoMeta; else recoLoading">
+        <div class="kpi-icon-wrap"><i class="bi bi-lightbulb"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Recommandations</div>
+          <div class="kpi-value">{{ fmt(recoMeta.n_recommendations) }}</div>
+          <div class="kpi-sub">{{ fmt(recoMeta.n_clients) }} clients — {{ fmt(recoMeta.n_clusters) }} clusters</div>
+        </div>
+      </div>
+      <ng-template #recoLoading>
+        <div class="kpi-card kpi-indigo">
+          <div class="kpi-body"><div class="kpi-label">Recommandations</div>
+            <div class="kpi-value"><span class="spinner"></span></div></div>
+        </div>
+      </ng-template>
+
+      <!-- Retrain -->
+      <div class="kpi-card" [class.kpi-green]="retrainSt?.status === 'success'"
+                             [class.kpi-orange]="retrainSt?.status === 'running'"
+                             [class.kpi-red]="retrainSt?.status === 'failed'">
+        <div class="kpi-icon-wrap"><i class="bi bi-arrow-repeat"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Dernier Retrain</div>
+          <div class="kpi-value">
+            <span class="badge" [ngClass]="statusClass(retrainSt?.status || 'idle')">
+              {{ retrainSt?.status || 'idle' }}
+            </span>
+          </div>
+          <div class="kpi-sub">{{ fmtDate(retrainSt?.last_success ?? null) }}</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Métriques modèles factures -->
+    <div class="section-card" *ngIf="metrics">
+      <div class="section-header">
+        <div class="section-title"><i class="bi bi-graph-up"></i> Métriques Modèles Factures</div>
+        <span class="badge" [ngClass]="metrics.model_healthy ? 'badge-success' : 'badge-danger'">
+          {{ metrics.model_healthy ? 'Sain' : 'Dégradé' }}
+        </span>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card" *ngFor="let bill of BILLS">
+          <ng-container *ngIf="metrics.billMetrics?.[bill] as bm; else noBill">
+            <div class="metric-label">{{ bm.label }}</div>
+            <div class="metric-r2" [style.color]="r2Color(bm.r2)">
+              R² {{ bm.r2 | number:'1.3-3' }}
+            </div>
+            <div class="metric-sub">MAE {{ fmtTnd(bm.mae) }} · RMSE {{ fmtTnd(bm.rmse) }}</div>
+            <div class="metric-badge">
+              <span class="badge" [ngClass]="bm.r2Ok ? 'badge-success' : 'badge-warning'">
+                {{ bm.confidenceLabel }} ({{ bm.r2Threshold }})
+              </span>
+            </div>
+          </ng-container>
+          <ng-template #noBill>
+            <div class="metric-label">{{ bill }}</div>
+            <div class="metric-sub text-muted">Aucune donnée</div>
+          </ng-template>
+        </div>
+      </div>
+
+      <!-- Alertes dégradation -->
+      <div class="alert-list" *ngIf="metrics.degradation_alerts?.length">
+        <div class="alert-item alert-warning" *ngFor="let a of metrics.degradation_alerts">
+          <i class="bi bi-exclamation-triangle-fill"></i> {{ a }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Coverage -->
+    <div class="section-card" *ngIf="health">
+      <div class="section-title"><i class="bi bi-people"></i> Couverture Client</div>
+      <div class="coverage-row">
+        <div class="cov-item">
+          <span class="cov-label">Clients Gold</span>
+          <span class="cov-val">{{ fmt(health.coverage.gold_clients) }}</span>
+        </div>
+        <div class="cov-item">
+          <span class="cov-label">Clients Moyen</span>
+          <span class="cov-val">{{ fmt(health.coverage.moyen_clients) }}</span>
+        </div>
+        <div class="cov-item">
+          <span class="cov-label">Recharge</span>
+          <span class="cov-val">{{ fmt(health.coverage.recharge_clients) }}</span>
+        </div>
+        <div class="cov-item">
+          <span class="cov-label">Entrées Factures</span>
+          <span class="cov-val">{{ fmt(health.coverage.factures_entries) }}</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- PAGE : PRÉDICTIONS                                        -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div *ngIf="page === 'predictions'">
+    <div class="section-card">
+      <div class="section-title"><i class="bi bi-graph-up-arrow"></i> Historique Performance (30 jours)</div>
+      <div class="chart-wrap">
+        <canvas id="aiPerformanceChart" height="280"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- PAGE : NOTIFICATIONS                                      -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div *ngIf="page === 'notifications'">
+    <div class="section-card">
+      <div class="section-title"><i class="bi bi-bell"></i> Envoyer une Notification</div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Destinataire</label>
+          <div class="toggle-row">
+            <label class="toggle-label">
+              <input type="checkbox" [(ngModel)]="nfAll" />
+              Tous les clients
+            </label>
+            <input *ngIf="!nfAll" class="form-control" placeholder="ID Client"
+                   [(ngModel)]="nfCid" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Type</label>
+          <select class="form-control" [(ngModel)]="nfType">
+            <option value="ATTENTION">Attention</option>
+            <option value="INFO">Info</option>
+            <option value="ALERTE">Alerte</option>
+            <option value="PROMO">Promotion</option>
+          </select>
+        </div>
+
+        <div class="form-group full-width">
+          <label>Titre</label>
+          <input class="form-control" placeholder="Titre de la notification" [(ngModel)]="nfTitre" />
+        </div>
+
+        <div class="form-group full-width">
+          <label>Message</label>
+          <textarea class="form-control" rows="3" placeholder="Contenu du message"
+                    [(ngModel)]="nfMsg"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Date planifiée (optionnel)</label>
+          <input type="datetime-local" class="form-control" [(ngModel)]="nfScheduleDate" />
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" (click)="sendNotif()" [disabled]="nfSending">
+          <i class="bi bi-send"></i> {{ nfSending ? 'Envoi…' : 'Envoyer maintenant' }}
+        </button>
+        <button class="btn btn-secondary" (click)="scheduleNotif()" [disabled]="!nfScheduleDate">
+          <i class="bi bi-clock"></i> Planifier
+        </button>
+      </div>
+
+      <div class="result-msg" *ngIf="nfResult">{{ nfResult }}</div>
+    </div>
+
+    <!-- Historique -->
+    <div class="section-card">
+      <div class="section-title"><i class="bi bi-clock-history"></i> Historique des Envois</div>
+      <div class="table-wrap">
+        <table class="data-table" *ngIf="nfHistory.length; else noData">
+          <thead>
+            <tr>
+              <th>Client</th><th>Titre</th><th>Type</th><th>Statut</th><th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let n of nfHistory">
+              <td>{{ n.client_id }}</td>
+              <td>{{ n.titre }}</td>
+              <td><span class="badge badge-info">{{ n.type }}</span></td>
+              <td><span class="badge" [ngClass]="statusClass(n.status)">{{ n.status }}</span></td>
+              <td>{{ fmtDate(n.sent_at) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #noData><p class="empty-msg">Aucune notification envoyée</p></ng-template>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- PAGE : RÉCOMPENSES                                        -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div *ngIf="page === 'rewards'">
+
+    <!-- Créer récompense -->
+    <div class="section-card">
+      <div class="section-title"><i class="bi bi-gift"></i> Créer une Récompense</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Titre</label>
+          <input class="form-control" [(ngModel)]="rwTitre" placeholder="Nom de la récompense" />
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select class="form-control" [(ngModel)]="rwType">
+            <option value="CASHBACK">Cashback</option>
+            <option value="POINTS">Points</option>
+            <option value="REDUCTION">Réduction</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Valeur (TND)</label>
+          <input type="number" class="form-control" [(ngModel)]="rwVal" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Points requis</label>
+          <input type="number" class="form-control" [(ngModel)]="rwPts" min="0" />
+        </div>
+        <div class="form-group full-width">
+          <label>Description</label>
+          <textarea class="form-control" rows="2" [(ngModel)]="rwDesc"></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" (click)="createReward()">
+          <i class="bi bi-plus-circle"></i> Créer
+        </button>
+      </div>
+      <div class="result-msg" *ngIf="rwResult">{{ rwResult }}</div>
+    </div>
+
+    <!-- Attribuer -->
+    <div class="section-card">
+      <div class="section-title"><i class="bi bi-person-check"></i> Attribuer une Récompense</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Récompense</label>
+          <select class="form-control" [(ngModel)]="rwSelId">
+            <option value="">— Sélectionner —</option>
+            <option *ngFor="let r of rwList" [value]="r.id">{{ r.titre }}</option>
+          </select>
+        </div>
+        <div class="form-group full-width">
+          <label>IDs Clients (séparés par des virgules)</label>
+          <input class="form-control" [(ngModel)]="rwClientIds" placeholder="id1, id2, id3" />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" (click)="attributeReward()" [disabled]="!rwSelId">
+          <i class="bi bi-send-check"></i> Attribuer
+        </button>
+      </div>
+      <div class="result-msg" *ngIf="rwAttrResult">{{ rwAttrResult }}</div>
+    </div>
+
+    <!-- Liste récompenses -->
+    <div class="section-card">
+      <div class="section-title"><i class="bi bi-list-ul"></i> Récompenses Actives</div>
+      <div class="table-wrap">
+        <table class="data-table" *ngIf="rwList.length; else noRw">
+          <thead>
+            <tr><th>Titre</th><th>Type</th><th>Valeur</th><th>Points</th><th>Statut</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of rwList">
+              <td>{{ r.titre }}</td>
+              <td>{{ r.type }}</td>
+              <td>{{ fmtTnd(r.valeur_tnd) }}</td>
+              <td>{{ r.points_requis }}</td>
+              <td>
+                <span class="badge" [ngClass]="r.actif ? 'badge-success' : 'badge-secondary'">
+                  {{ r.actif ? 'Actif' : 'Inactif' }}
+                </span>
+              </td>
+              <td>
+                <button class="btn btn-sm" [ngClass]="r.actif ? 'btn-danger' : 'btn-success'"
+                        (click)="toggleReward(r)">
+                  {{ r.actif ? 'Désactiver' : 'Activer' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #noRw><p class="empty-msg">Aucune récompense</p></ng-template>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- PAGE : RÉENTRAÎNEMENT                                     -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div *ngIf="page === 'retrain'">
+    <div class="section-card">
+      <div class="section-title"><i class="bi bi-arrow-repeat"></i> Réentraînement du Modèle IA</div>
+
+      <!-- Statut actuel -->
+      <div class="retrain-status" *ngIf="retrainSt">
+        <div class="status-row">
+          <span class="stat-label">Statut</span>
+          <span class="badge" [ngClass]="statusClass(retrainSt.status)">{{ retrainSt.status }}</span>
+        </div>
+        <div class="status-row">
+          <span class="stat-label">Dernier succès</span>
+          <span>{{ fmtDate(retrainSt.last_success) }}</span>
+        </div>
+        <div class="status-row" *ngIf="retrainSt.last_error">
+          <span class="stat-label">Dernière erreur</span>
+          <span class="text-danger">{{ retrainSt.last_error }}</span>
+        </div>
+        <div class="status-row" *ngIf="retrainSt.duration_sec">
+          <span class="stat-label">Durée</span>
+          <span>{{ retrainSt.duration_sec }}s</span>
+        </div>
+        <div class="status-row" *ngIf="retrainSt.pkls_updated?.length">
+          <span class="stat-label">PKLs mis à jour</span>
+          <span>{{ retrainSt.pkls_updated.join(', ') }}</span>
+        </div>
+      </div>
+
+      <!-- Bouton lancer -->
+      <div class="btn-row">
+        <button class="btn btn-primary" (click)="doRetrain()"
+                [disabled]="retraining || retrainSt?.status === 'running'">
+          <i class="bi bi-arrow-repeat" [class.spin]="retraining"></i>
+          {{ retraining ? 'Réentraînement en cours…' : 'Lancer le réentraînement' }}
+        </button>
+      </div>
+
+      <div class="result-msg" *ngIf="retrainMsg">{{ retrainMsg }}</div>
+    </div>
+
+    <!-- Historique retrain -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title"><i class="bi bi-clock-history"></i> Historique</div>
+        <button class="btn btn-sm btn-secondary" (click)="toggleRetrainHistory()">
+          {{ showRetrainHistory ? 'Masquer' : 'Afficher' }}
+        </button>
+      </div>
+      <div *ngIf="showRetrainHistory">
+        <div *ngIf="retrainHistoryLoading"><span class="spinner"></span> Chargement…</div>
+        <div class="table-wrap" *ngIf="!retrainHistoryLoading">
+          <table class="data-table" *ngIf="retrainHistory.length; else noHist">
+            <thead>
+              <tr><th>#</th><th>Statut</th><th>Trigger</th><th>Durée</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let h of retrainHistory; let i = index">
+                <td>{{ i + 1 }}</td>
+                <td><span class="badge" [ngClass]="statusClass(h.status)">{{ h.status }}</span></td>
+                <td>{{ h.trigger || '—' }}</td>
+                <td>{{ h.duration_sec ? h.duration_sec + 's' : '—' }}</td>
+                <td>{{ fmtDate(h.timestamp || h.last_run) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <ng-template #noHist><p class="empty-msg">Aucun historique</p></ng-template>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- PAGE : ALERTES IA                                         -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div *ngIf="page === 'alerts'">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title"><i class="bi bi-exclamation-triangle"></i> Alertes de Monitoring</div>
+        <div class="filter-row">
+          <select class="form-control form-control-sm" [(ngModel)]="filterSeverity" (change)="filterAlerts()">
+            <option value="">Toutes sévérités</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="CRITICAL">Critical</option>
+          </select>
+        </div>
+      </div>
+
+      <div *ngIf="alertsLoading"><span class="spinner"></span> Chargement…</div>
+
+      <div class="table-wrap" *ngIf="!alertsLoading">
+        <table class="data-table" *ngIf="alertsList.length; else noAlerts">
+          <thead>
+            <tr><th>Feature</th><th>Sévérité</th><th>Message</th><th>Modèle</th><th>Date</th><th>Résolu</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of alertsList">
+              <td>{{ a.feature_name }}</td>
+              <td>
+                <span class="badge"
+                      [ngClass]="{'badge-danger': a.severity==='CRITICAL'||a.severity==='HIGH',
+                                  'badge-warning': a.severity==='MEDIUM',
+                                  'badge-info': a.severity==='LOW'}">
+                  {{ a.severity }}
+                </span>
+              </td>
+              <td>{{ a.message }}</td>
+              <td>{{ a.model_version }}</td>
+              <td>{{ fmtDate(a.triggered_at) }}</td>
+              <td>
+                <span class="badge" [ngClass]="a.resolved ? 'badge-success' : 'badge-secondary'">
+                  {{ a.resolved ? 'Oui' : 'Non' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #noAlerts><p class="empty-msg">Aucune alerte</p></ng-template>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination" *ngIf="alertsTotal > 20">
+        <button class="btn btn-sm btn-secondary" (click)="prevAlerts()" [disabled]="alertsPage === 0">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <span>Page {{ alertsPage + 1 }}</span>
+        <button class="btn btn-sm btn-secondary" (click)="nextAlerts()"
+                [disabled]="(alertsPage + 1) * 20 >= alertsTotal">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,410 @@
+<div class="analysis-page">
+
+  <!-- ── Header ───────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+      <span class="header-tag">
+       PROVIDERS
+      </span>
+      <h1>Analyse des <span class="accent">Foirnisseurs</span></h1>
+      <p class="subtitle">
+        Répartition des transactions et montants par fournisseur de service
+      </p>
+    </div>
+
+    <div class="date-filter">
+      <div class="date-input-group">
+        <label> Du</label>
+        <input type="date" [(ngModel)]="fromDate" />
+      </div>
+      <div class="date-sep"><i class="bi bi-arrow-right"></i></div>
+      <div class="date-input-group">
+        <label> Au</label>
+        <input type="date" [(ngModel)]="toDate" />
+      </div>
+      <button class="btn-apply" (click)="load()">
+        <i class="bi bi-funnel-fill"></i> Appliquer
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Loader ───────────────────────────────────────────────────── -->
+  <div class="loader-wrap" *ngIf="loading">
+    <div class="loader-ring"></div>
+    <span>Chargement des données…</span>
+  </div>
+
+  <!-- ── Error ────────────────────────────────────────────────────── -->
+  <div class="error-banner" *ngIf="error && !loading">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    Impossible de charger les données. Vérifiez la connexion au serveur.
+  </div>
+
+  <!-- ── Dashboard ────────────────────────────────────────────────── -->
+  <div class="dashboard" *ngIf="stats && !loading">
+
+    <!-- ── KPI Row ─────────────────────────────────────────────────── -->
+    <div class="kpi-row">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon-wrap">
+          <i class="bi bi-building"></i>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Nombre de Providers</div>
+          <div class="kpi-value">{{ stats.totalProviders }}</div>
+
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-indigo">
+        <div class="kpi-icon-wrap">
+          <i class="bi bi-arrow-left-right"></i>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Volume Total Transactions</div>
+          <div class="kpi-value">{{ formatCount(stats.grandTotalTransactions) }}</div>
+
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon-wrap">
+          <i class="bi bi-cash-coin"></i>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Volume Total Montant</div>
+          <div class="kpi-value" style="font-size:1.15rem">
+            {{ formatAmount(stats.grandTotalAmount) }}
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Charts Row — 2 Donuts interactifs ──────────────────────── -->
+    <div class="charts-row">
+
+      <!-- ── Donut Transactions ──────────────────────────────────── -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="bi bi-pie-chart-fill"></i>
+          <span class="chart-title">
+            Répartition par Nombre de Transactions
+          </span>
+        </div>
+        <div class="donut-layout">
+
+          <!-- SVG Donut Transactions -->
+          <svg viewBox="0 0 300 300" class="donut-svg">
+            <!-- Track vide -->
+            <circle cx="150" cy="150" r="110"
+                    fill="none" stroke="#f0f4fa" stroke-width="44"/>
+
+            <!-- Arcs colorés -->
+            <ng-container
+              *ngFor="let s of stats.shares; let i = index">
+              <path *ngIf="countArcs[i]?.arc"
+                    [attr.d]="countArcs[i].arc"
+                    fill="none"
+                    [attr.stroke]="getColor(i)"
+                    stroke-width="44"
+                    stroke-linecap="butt"
+                    class="arc-segment"
+                    [class.arc-dimmed]="hoveredCount !== null && hoveredCount !== i"
+                    [class.arc-active]="hoveredCount === i"
+                    (mouseenter)="hoveredCount = i"
+                    (mouseleave)="hoveredCount = null"/>
+            </ng-container>
+
+            <!-- Séparateurs blancs -->
+            <ng-container
+              *ngFor="let s of stats.shares; let i = index">
+              <path *ngIf="countArcs[i]?.arc"
+                    [attr.d]="countArcs[i].arc"
+                    fill="none"
+                    stroke="#ffffff"
+                    stroke-width="2"
+                    stroke-linecap="butt"
+                    pointer-events="none"/>
+            </ng-container>
+
+            <!-- Cercle blanc centre -->
+            <circle cx="150" cy="150" r="88" fill="#ffffff"/>
+
+            <!-- Centre — état normal -->
+            <ng-container *ngIf="hoveredCount === null">
+              <text x="150" y="138" text-anchor="middle"
+                    fill="#6b7fa3" font-size="10"
+                    font-family="'DM Sans', sans-serif"
+                    font-weight="500">TRANSACTIONS</text>
+              <text x="150" y="158" text-anchor="middle"
+                    fill="#1a2740" font-size="14"
+                    font-family="'Syne', sans-serif"
+                    font-weight="700">
+                {{ formatCount(stats.grandTotalTransactions) }}
+              </text>
+              <text x="150" y="173" text-anchor="middle"
+                    fill="#6b7fa3" font-size="9.5"
+                    font-family="'DM Sans', sans-serif">
+                au total
+              </text>
+            </ng-container>
+
+            <!-- Centre — état hover -->
+            <ng-container *ngIf="hoveredCount !== null">
+              <text x="150" y="128" text-anchor="middle"
+                    fill="#6b7fa3" font-size="9"
+                    font-family="'DM Sans', sans-serif"
+                    font-weight="500">
+                {{ stats.shares[hoveredCount].providerName | slice:0:18 }}
+              </text>
+              <text x="150" y="154" text-anchor="middle"
+                    [attr.fill]="getColor(hoveredCount)"
+                    font-size="26"
+                    font-family="'Syne', sans-serif"
+                    font-weight="700">
+                {{ stats.shares[hoveredCount].percentCount }}%
+              </text>
+              <text x="150" y="171" text-anchor="middle"
+                    fill="#6b7fa3" font-size="9.5"
+                    font-family="'DM Sans', sans-serif">
+                {{ formatCount(stats.shares[hoveredCount].transactionCount) }} tx
+              </text>
+            </ng-container>
+          </svg>
+
+          <!-- Légende Transactions -->
+          <div class="donut-legend">
+            <div class="legend-item"
+                 *ngFor="let s of stats.shares; let i = index"
+                 [class.legend-active]="hoveredCount === i"
+                 [class.legend-dimmed]="hoveredCount !== null && hoveredCount !== i"
+                 (mouseenter)="hoveredCount = i"
+                 (mouseleave)="hoveredCount = null"
+                 (click)="goToDetails(s.id)">
+              <span class="legend-dot"
+                    [style.background]="getColor(i)"></span>
+              <div class="legend-text">
+                <div class="legend-name">{{ s.providerName }}</div>
+                <div class="legend-sub">
+                  {{ formatCount(s.transactionCount) }} tx
+                </div>
+              </div>
+              <span class="legend-pct"
+                    [style.color]="getColor(i)">
+                {{ s.percentCount }}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Donut Montants ──────────────────────────────────────── -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="bi bi-pie-chart-fill"></i>
+          <span class="chart-title">Répartition par Montant</span>
+        </div>
+        <div class="donut-layout">
+
+          <!-- SVG Donut Montants -->
+          <svg viewBox="0 0 300 300" class="donut-svg">
+            <circle cx="150" cy="150" r="110"
+                    fill="none" stroke="#f0f4fa" stroke-width="44"/>
+
+            <ng-container
+              *ngFor="let s of stats.shares; let i = index">
+              <path *ngIf="amountArcs[i]?.arc"
+                    [attr.d]="amountArcs[i].arc"
+                    fill="none"
+                    [attr.stroke]="getColor(i)"
+                    stroke-width="44"
+                    stroke-linecap="butt"
+                    class="arc-segment"
+                    [class.arc-dimmed]="hoveredAmount !== null && hoveredAmount !== i"
+                    [class.arc-active]="hoveredAmount === i"
+                    (mouseenter)="hoveredAmount = i"
+                    (mouseleave)="hoveredAmount = null"/>
+            </ng-container>
+
+            <ng-container
+              *ngFor="let s of stats.shares; let i = index">
+              <path *ngIf="amountArcs[i]?.arc"
+                    [attr.d]="amountArcs[i].arc"
+                    fill="none"
+                    stroke="#ffffff"
+                    stroke-width="2"
+                    stroke-linecap="butt"
+                    pointer-events="none"/>
+            </ng-container>
+
+            <circle cx="150" cy="150" r="88" fill="#ffffff"/>
+
+            <!-- Centre normal -->
+            <ng-container *ngIf="hoveredAmount === null">
+              <text x="150" y="135" text-anchor="middle"
+                    fill="#6b7fa3" font-size="10"
+                    font-family="'DM Sans', sans-serif"
+                    font-weight="500">MONTANTS</text>
+              <text x="150" y="155" text-anchor="middle"
+                    fill="#1a2740" font-size="11"
+                    font-family="'Syne', sans-serif"
+                    font-weight="700">
+                {{ formatAmount(stats.grandTotalAmount) }}
+              </text>
+              <text x="150" y="170" text-anchor="middle"
+                    fill="#6b7fa3" font-size="9.5"
+                    font-family="'DM Sans', sans-serif">
+                TND total
+              </text>
+            </ng-container>
+
+            <!-- Centre hover -->
+            <ng-container *ngIf="hoveredAmount !== null">
+              <text x="150" y="128" text-anchor="middle"
+                    fill="#6b7fa3" font-size="9"
+                    font-family="'DM Sans', sans-serif"
+                    font-weight="500">
+                {{ stats.shares[hoveredAmount].providerName | slice:0:18 }}
+              </text>
+              <text x="150" y="154" text-anchor="middle"
+                    [attr.fill]="getColor(hoveredAmount)"
+                    font-size="26"
+                    font-family="'Syne', sans-serif"
+                    font-weight="700">
+                {{ stats.shares[hoveredAmount].percentAmount }}%
+              </text>
+              <text x="150" y="171" text-anchor="middle"
+                    fill="#6b7fa3" font-size="9"
+                    font-family="'DM Sans', sans-serif">
+                {{ formatAmount(stats.shares[hoveredAmount].totalAmount) }}
+              </text>
+            </ng-container>
+          </svg>
+
+          <!-- Légende Montants -->
+          <div class="donut-legend">
+            <div class="legend-item"
+                 *ngFor="let s of stats.shares; let i = index"
+                 [class.legend-active]="hoveredAmount === i"
+                 [class.legend-dimmed]="hoveredAmount !== null && hoveredAmount !== i"
+                 (mouseenter)="hoveredAmount = i"
+                 (mouseleave)="hoveredAmount = null"
+                 (click)="goToDetails(s.id)">
+              <span class="legend-dot"
+                    [style.background]="getColor(i)"></span>
+              <div class="legend-text">
+                <div class="legend-name">{{ s.providerName }}</div>
+                <div class="legend-sub">
+                  {{ formatAmount(s.totalAmount) }}
+                </div>
+              </div>
+              <span class="legend-pct"
+                    [style.color]="getColor(i)">
+                {{ s.percentAmount }}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Tableau détail ──────────────────────────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-table"></i>
+          Détail par Provider
+        </div>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th><i class="bi bi-hash"></i></th>
+            <th> Provider</th>
+            <th>Code</th>
+            <th> Transactions</th>
+            <th> % Transactions</th>
+            <th> Montant Total</th>
+            <th> % Montant</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of stats.shares; let i = index"
+              [class.row-highlight]="hoveredCount === i || hoveredAmount === i"
+              (mouseenter)="hoveredCount = i; hoveredAmount = i"
+              (mouseleave)="hoveredCount = null; hoveredAmount = null">
+
+            <td>
+              <span class="rank-badge"
+                    [style.background]="getColor(i)">
+                {{ i + 1 }}
+              </span>
+            </td>
+
+            <td>
+              <div class="provider-cell">
+                <span class="provider-dot"
+                      [style.background]="getColor(i)"></span>
+                <span class="provider-name">{{ s.providerName }}</span>
+              </div>
+            </td>
+
+            <td>
+              <span class="code-tag">
+                <i class="bi bi-upc"></i> {{ s.providerCode }}
+              </span>
+            </td>
+
+            <td>{{ formatCount(s.transactionCount) }}</td>
+
+            <td>
+              <div class="bar-cell">
+                <div class="bar-track">
+                  <div class="bar-fill"
+                       [style.width.%]="s.percentCount"
+                       [style.background]="getColor(i)">
+                  </div>
+                </div>
+                <span class="bar-pct">{{ s.percentCount }}%</span>
+              </div>
+            </td>
+
+            <td>
+              <span class="amount-cell">
+                {{ formatAmount(s.totalAmount) }}
+              </span>
+            </td>
+
+            <td>
+              <div class="bar-cell">
+                <div class="bar-track">
+                  <div class="bar-fill"
+                       [style.width.%]="s.percentAmount"
+                       [style.background]="getColor(i)">
+                  </div>
+                </div>
+                <span class="bar-pct">{{ s.percentAmount }}%</span>
+              </div>
+            </td>
+
+            <td>
+              <button class="detail-btn" (click)="goToDetails(s.id)">
+                <i class="bi bi-eye"></i> Détail
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="empty-state" *ngIf="stats.shares.length === 0">
+        <i class="bi bi-inbox"></i>
+        <span>Aucune donnée disponible pour cette période.</span>
+      </div>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,324 @@
+<div class="breakdown-page">
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+
+      <button class="btn-back" (click)="goBack()"
+              style="color: #1565c0 ;">
+        <i class="bi bi-arrow-left"></i>
+        Retour aux {{ categoryType === 'depense' ? 'Dépenses' : 'Revenus' }}
+      </button>
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <span class="bc-parent">Analyse Globale</span>
+        <i class="bi bi-chevron-right bc-sep"></i>
+        <span class="bc-parent bc-link" (click)="goBack()">
+          {{ categoryType === 'depense' ? 'Dépenses' : 'Revenus' }} par Catégorie
+        </span>
+        <i class="bi bi-chevron-right bc-sep"></i>
+        <span class="bc-current">{{ categoryName }}</span>
+      </div>
+
+      <h1>
+        Sous-catégories de
+        <span class="accent" [style.color]="accentColor">
+          {{ categoryName }}
+        </span>
+      </h1>
+
+      <p class="subtitle">
+        {{ categoryType === 'depense'
+          ? 'Transactions type Débit'
+          : 'Transactions type Crédit' }}
+        — {{ categoryName }}
+      </p>
+    </div>
+
+    <div class="date-filter">
+      <div class="date-input-group">
+        <label>Du</label>
+        <input type="date" [(ngModel)]="fromDate" />
+      </div>
+      <div class="date-sep">→</div>
+      <div class="date-input-group">
+        <label>Au</label>
+        <input type="date" [(ngModel)]="toDate" />
+      </div>
+      <button class="btn-apply" (click)="load()"
+              style="background-color: #1565c0 ;">
+        <i class="bi bi-funnel-fill"></i> Appliquer
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Loader ─────────────────────────────────────────────────── -->
+  <div class="loader-wrap" *ngIf="subLoading">
+    <div class="loader-ring" [style.borderTopColor]="accentColor"></div>
+    <span>Chargement des sous-catégories…</span>
+  </div>
+
+  <!-- ── Error ──────────────────────────────────────────────────── -->
+  <div class="error-banner" *ngIf="subError && !subLoading">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    Impossible de charger les sous-catégories.
+  </div>
+
+  <!-- ── Contenu ────────────────────────────────────────────────── -->
+  <ng-container *ngIf="!subLoading && !subError && subCategories.length > 0">
+
+    <!-- KPI -->
+    <div class="totals-row">
+      <div class="total-card">
+        <div class="total-icon"
+             [style.background]="accentColor + '18'"
+             [style.color]="accentColor">
+          <i class="bi" [ngClass]="getIcon(categoryName)"></i>
+        </div>
+        <div>
+          <div class="total-label">Total</div>
+          <div class="total-value">{{ formatAmount(getTotalAmount()) }}</div>
+        </div>
+      </div>
+      <div class="total-card">
+        <div class="total-icon tx-icon">
+          <i class="bi bi-list-ul"></i>
+        </div>
+        <div>
+          <div class="total-label">Nb Transactions</div>
+          <div class="total-value">{{ formatCount(getTotalCount()) }}</div>
+        </div>
+      </div>
+      <div class="total-card">
+        <div class="total-icon cat-icon">
+          <i class="bi bi-diagram-2-fill"></i>
+        </div>
+        <div>
+          <div class="total-label">Sous-catégories</div>
+          <div class="total-value">{{ subCategories.length }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tableau + Donut -->
+    <div class="table-donut-row">
+
+      <!-- Tableau -->
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">
+            <i class="bi bi-table"></i>
+            Sous-catégories — {{ categoryName }}
+          </span>
+          <span class="table-sub">Trié par montant décroissant</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Sous-catégorie</th>
+                <th>Montant Total</th>
+                <th>Nb Transactions</th>
+                <th>Ticket Moyen</th>
+                <th>% Montant</th>
+                <th>% Transactions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let sub of subCategories; let i = index"
+                  [class.row-hovered]="hoveredIndex === i"
+                  (mouseenter)="hoveredIndex = i"
+                  (mouseleave)="hoveredIndex = null">
+
+                <td class="rank-cell">
+                  <span class="rank" [class.rank-top]="i < 3">
+                    {{ i + 1 }}
+                  </span>
+                </td>
+
+                <td class="cat-cell">
+                  <span class="sub-dot"
+                        [style.background]="getColor(sub.subCategory)">
+                  </span>
+                  <span class="cat-name">{{ sub.subCategory }}</span>
+                </td>
+
+                <td class="amount-cell">{{ formatAmount(sub.totalAmount) }}</td>
+
+                <td class="count-cell">
+                  <i class="bi bi-arrow-left-right count-icon"></i>
+                  {{ formatCount(sub.totalCount) }}
+                </td>
+
+                <td class="avg-cell">{{ formatAmount(sub.averageAmount) }}</td>
+
+                <td class="pct-cell">
+                  <span class="pct-badge"
+                        [style.background]="getColor(sub.subCategory) + '20'"
+                        [style.color]="getColor(sub.subCategory)">
+                    {{ sub.percentAmount }}%
+                  </span>
+                </td>
+
+                <td class="pct-cell">
+                  <span class="pct-badge pct-neutral">
+                    {{ sub.percentCount }}%
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="2"><strong>TOTAL</strong></td>
+                <td><strong>{{ formatAmount(getTotalAmount()) }}</strong></td>
+                <td><strong>{{ formatCount(getTotalCount()) }}</strong></td>
+                <td>—</td>
+                <td><strong>100%</strong></td>
+                <td><strong>100%</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Donut -->
+      <div class="donut-card">
+        <div class="donut-card-header">
+          <span class="table-title">
+            <i class="bi bi-pie-chart-fill"></i> Répartition
+          </span>
+          <span class="table-sub">Par montant</span>
+        </div>
+        <div class="donut-inner">
+          <svg viewBox="0 0 300 300" class="donut-svg">
+            <circle cx="150" cy="150" r="110"
+                    fill="none" stroke="#f0f4fa" stroke-width="44"/>
+
+            <ng-container *ngFor="let sub of subCategories; let i = index">
+              <path [attr.d]="getArc(i)" fill="none"
+                    [attr.stroke]="getColor(sub.subCategory)"
+                    stroke-width="44" stroke-linecap="butt"
+                    class="arc-segment"
+                    [class.arc-dimmed]="hoveredIndex !== null && hoveredIndex !== i"
+                    [class.arc-active]="hoveredIndex === i"
+                    (mouseenter)="hoveredIndex = i"
+                    (mouseleave)="hoveredIndex = null"/>
+            </ng-container>
+
+            <ng-container *ngFor="let sub of subCategories; let i = index">
+              <path [attr.d]="getArc(i)" fill="none"
+                    stroke="#ffffff" stroke-width="2"
+                    stroke-linecap="butt" pointer-events="none"/>
+            </ng-container>
+
+            <circle cx="150" cy="150" r="88" fill="#ffffff"/>
+
+            <ng-container *ngIf="hoveredIndex === null">
+              <text x="150" y="135" text-anchor="middle"
+                    fill="#6b7fa3" font-size="9"
+                    font-family="'DM Sans', sans-serif" font-weight="500">
+                {{ categoryName | slice:0:16 }}
+              </text>
+              <text x="150" y="155" text-anchor="middle"
+                    [attr.fill]="accentColor"
+                    font-size="13" font-family="'Syne', sans-serif"
+                    font-weight="700">
+                {{ formatCount(getTotalCount()) }}
+              </text>
+              <text x="150" y="170" text-anchor="middle"
+                    fill="#6b7fa3" font-size="10"
+                    font-family="'DM Sans', sans-serif">
+                transactions
+              </text>
+            </ng-container>
+
+            <ng-container *ngIf="hoveredIndex !== null">
+              <text x="150" y="128" text-anchor="middle"
+                    fill="#6b7fa3" font-size="9"
+                    font-family="'DM Sans', sans-serif" font-weight="500">
+                {{ subCategories[hoveredIndex].subCategory | slice:0:18 }}
+              </text>
+              <text x="150" y="154" text-anchor="middle"
+                    [attr.fill]="getColor(subCategories[hoveredIndex].subCategory)"
+                    font-size="26" font-family="'Syne', sans-serif"
+                    font-weight="700">
+                {{ subCategories[hoveredIndex].percentAmount }}%
+              </text>
+              <text x="150" y="171" text-anchor="middle"
+                    fill="#6b7fa3" font-size="9"
+                    font-family="'DM Sans', sans-serif">
+                {{ formatAmount(subCategories[hoveredIndex].totalAmount) }}
+              </text>
+            </ng-container>
+          </svg>
+
+          <div class="donut-legend">
+            <div class="legend-item"
+                 *ngFor="let sub of subCategories; let i = index"
+                 [class.legend-active]="hoveredIndex === i"
+                 [class.legend-dimmed]="hoveredIndex !== null && hoveredIndex !== i"
+                 (mouseenter)="hoveredIndex = i"
+                 (mouseleave)="hoveredIndex = null">
+              <span class="legend-dot"
+                    [style.background]="getColor(sub.subCategory)"></span>
+              <div class="legend-body">
+                <span class="legend-name">{{ sub.subCategory }}</span>
+                <span class="legend-pct"
+                      [style.color]="getColor(sub.subCategory)">
+                  {{ sub.percentAmount }}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barres -->
+    <div class="bars-card">
+      <div class="table-header">
+        <span class="table-title">
+          <i class="bi bi-bar-chart-fill"></i> Vue Graphique
+        </span>
+      </div>
+      <div class="bars-list">
+        <div class="bar-row"
+             *ngFor="let sub of subCategories; let i = index"
+             [class.bar-hovered]="hoveredIndex === i"
+             (mouseenter)="hoveredIndex = i"
+             (mouseleave)="hoveredIndex = null">
+          <div class="bar-row-left">
+            <span class="sub-bar-dot"
+                  [style.background]="getColor(sub.subCategory)"></span>
+            <span class="bar-cat-name">{{ sub.subCategory }}</span>
+          </div>
+          <div class="bar-row-track">
+            <div class="bar-row-fill"
+                 [style.width.%]="sub.percentAmount"
+                 [style.background]="getColor(sub.subCategory)"></div>
+          </div>
+          <div class="bar-row-right">
+            <span class="bar-row-pct"
+                  [style.color]="getColor(sub.subCategory)">
+              {{ sub.percentAmount }}%
+            </span>
+            <span class="bar-row-amount">
+              {{ formatAmount(sub.totalAmount) }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </ng-container>
+
+  <!-- Empty -->
+  <div class="empty-state"
+       *ngIf="!subLoading && !subError && subCategories.length === 0">
+    <i class="bi bi-inbox"></i>
+    <p>Aucune sous-catégorie trouvée pour <strong>{{ categoryName }}</strong>.</p>
+  </div>
+
+</div>

@@ -1,0 +1,528 @@
+<div class="dashboard-page">
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- HEADER                                                        -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1>Vue Globale <span class="accent">Administrateur</span></h1>
+      <p class="subtitle">
+        Toutes les données jusqu'à maintenant — mise à jour automatique
+      </p>
+    </div>
+    <div class="header-right">
+      <button class="btn-refresh" (click)="load()" [disabled]="loading">
+        <i class="bi bi-arrow-clockwise" [class.spin]="loading"></i>
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Loader ──────────────────────────────────────────────────── -->
+  <div class="loader-wrap" *ngIf="loading && !data">
+    <div class="loader-ring"></div>
+    <span>Chargement du dashboard…</span>
+  </div>
+
+  <!-- ── Error ───────────────────────────────────────────────────── -->
+  <div class="error-banner" *ngIf="error && !loading">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    Impossible de charger les données. Vérifiez la connexion au serveur.
+    <button class="btn-retry" (click)="load()">
+      <i class="bi bi-arrow-clockwise"></i> Réessayer
+    </button>
+  </div>
+
+  <div class="dashboard-body" *ngIf="data">
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 1 — KPIs                                              -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="kpi-row">
+
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon-wrap"><i class="bi bi-arrow-left-right"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Total Transactions</div>
+          <div class="kpi-value">{{ formatCount(data.kpi.totalTransactions) }}</div>
+          <div class="kpi-sub"><i class="bi bi-graph-up-arrow"></i> toutes les transactions</div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon-wrap"><i class="bi bi-cash-coin"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Montant Total Traité</div>
+          <div class="kpi-value kpi-sm">{{ formatAmount(data.kpi.totalAmount) }}</div>
+          <div class="kpi-sub"><i class="bi bi-currency-exchange"></i> volume financier global</div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-indigo">
+        <div class="kpi-icon-wrap"><i class="bi bi-calculator"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Montant Moyen / Tx</div>
+          <div class="kpi-value kpi-sm">{{ formatAmount(data.kpi.avgAmount) }}</div>
+          <div class="kpi-sub"><i class="bi bi-bar-chart"></i> par transaction</div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-purple kpi-clickable" (click)="goToClients()">
+        <div class="kpi-icon-wrap"><i class="bi bi-people-fill"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Clients</div>
+          <div class="kpi-value">{{ formatCount(data.kpi.totalClients) }}</div>
+          <div class="kpi-sub"><i class="bi bi-box-arrow-up-right"></i> voir les clients</div>
+        </div>
+        <div class="kpi-link-icon"><i class="bi bi-arrow-right-circle-fill"></i></div>
+      </div>
+
+      <div class="kpi-card kpi-orange kpi-clickable" (click)="goToProviders()">
+        <div class="kpi-icon-wrap"><i class="bi bi-building"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Providers Actifs</div>
+          <div class="kpi-value">{{ formatCount(data.kpi.totalProviders) }}</div>
+          <div class="kpi-sub"><i class="bi bi-box-arrow-up-right"></i> voir les providers</div>
+        </div>
+        <div class="kpi-link-icon"><i class="bi bi-arrow-right-circle-fill"></i></div>
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 2 — COURBE LINÉAIRE                                   -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-graph-up"></i>
+          Activité — 30 derniers jours
+        </div>
+        <div class="line-legend">
+          <span class="leg-item">
+            <span class="leg-dot" style="background:#1565c0"></span>
+            Transactions
+          </span>
+          <span class="leg-item">
+            <span class="leg-dot" style="background:#2e7d32"></span>
+            Montants (TND)
+          </span>
+        </div>
+      </div>
+
+      <div class="line-chart-wrap" *ngIf="data.dailyActivity.length > 0">
+
+        <!-- Axe Y gauche — Transactions -->
+        <div class="y-axis y-left">
+          <span>{{ formatCount(maxCount) }}</span>
+          <span>{{ formatCount(maxCount / 2) }}</span>
+          <span>0</span>
+        </div>
+
+        <!-- Zone SVG -->
+        <div class="svg-wrap" #svgWrap>
+          <svg [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH"
+               [attr.width]="svgW" [attr.height]="svgH"
+               class="line-svg">
+
+            <!-- Grille horizontale -->
+            <line *ngFor="let y of gridYs"
+                  x1="0" [attr.y1]="y" [attr.x2]="svgW" [attr.y2]="y"
+                  stroke="#e8edf5" stroke-width="1" stroke-dasharray="4 4"/>
+
+            <!-- ── Aire remplie Montants ── -->
+            <defs>
+              <linearGradient id="gradAmount" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#2e7d32" stop-opacity="0.18"/>
+                <stop offset="100%" stop-color="#2e7d32" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="gradCount" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#1565c0" stop-opacity="0.15"/>
+                <stop offset="100%" stop-color="#1565c0" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+
+            <path [attr.d]="areaAmount" fill="url(#gradAmount)"/>
+            <path [attr.d]="areaCount"  fill="url(#gradCount)"/>
+
+            <!-- ── Courbe Montants ── -->
+            <path [attr.d]="lineAmount"
+                  fill="none" stroke="#2e7d32" stroke-width="2.5"
+                  stroke-linejoin="round" stroke-linecap="round"/>
+
+            <!-- ── Courbe Transactions ── -->
+            <path [attr.d]="lineCount"
+                  fill="none" stroke="#1565c0" stroke-width="2.5"
+                  stroke-linejoin="round" stroke-linecap="round"/>
+
+            <!-- ── Points interactifs ── -->
+            <g *ngFor="let item of data.dailyActivity; let i = index"
+               (mouseenter)="hoveredLine = i"
+               (mouseleave)="hoveredLine = null"
+               style="cursor:pointer">
+
+              <!-- Zone de capture large -->
+              <rect [attr.x]="ptX(i) - 10" y="0"
+                    width="20" [attr.height]="svgH"
+                    fill="transparent"/>
+
+              <!-- Ligne verticale au survol -->
+              <line *ngIf="hoveredLine === i"
+                    [attr.x1]="ptX(i)" y1="0"
+                    [attr.x2]="ptX(i)" [attr.y2]="svgH"
+                    stroke="#d0dff0" stroke-width="1" stroke-dasharray="4 3"/>
+
+              <!-- Point Transactions -->
+              <circle [attr.cx]="ptX(i)"
+                      [attr.cy]="ptCountY(i)"
+                      [attr.r]="hoveredLine === i ? 5.5 : 3.5"
+                      fill="#ffffff"
+                      stroke="#1565c0"
+                      [attr.stroke-width]="hoveredLine === i ? 2.5 : 2"
+                      style="transition: r 0.15s"/>
+
+              <!-- Point Montants -->
+              <circle [attr.cx]="ptX(i)"
+                      [attr.cy]="ptAmountY(i)"
+                      [attr.r]="hoveredLine === i ? 5.5 : 3.5"
+                      fill="#ffffff"
+                      stroke="#2e7d32"
+                      [attr.stroke-width]="hoveredLine === i ? 2.5 : 2"
+                      style="transition: r 0.15s"/>
+
+              <!-- Label date axe X -->
+              <text *ngIf="i % 5 === 0 || i === data.dailyActivity.length - 1"
+                    [attr.x]="ptX(i)"
+                    [attr.y]="svgH - 2"
+                    text-anchor="middle"
+                    font-size="9"
+                    fill="#9ca3af"
+                    font-family="'DM Sans', sans-serif">
+                {{ item.date | slice:5 }}
+              </text>
+
+            </g>
+
+            <!-- ── Tooltip SVG ── -->
+            <g *ngIf="hoveredLine !== null"
+               [attr.transform]="tooltipTransform(hoveredLine)">
+              <rect x="0" y="0" width="160" height="68"
+                    rx="8" ry="8"
+                    fill="#1a2740"
+                    filter="drop-shadow(0 4px 10px rgba(0,0,0,0.25))"/>
+              <text x="10" y="18"
+                    font-size="9.5" fill="#94a3b8"
+                    font-family="'DM Sans', sans-serif">
+                {{ data.dailyActivity[hoveredLine].date }}
+              </text>
+              <!-- Transactions -->
+              <circle cx="10" cy="32" r="4" fill="#1565c0"/>
+              <text x="20" y="36"
+                    font-size="10.5" fill="#ffffff" font-weight="600"
+                    font-family="'Syne', sans-serif">
+                {{ formatCount(data.dailyActivity[hoveredLine].count) }} tx
+              </text>
+              <!-- Montants -->
+              <circle cx="10" cy="52" r="4" fill="#2e7d32"/>
+              <text x="20" y="56"
+                    font-size="10" fill="#94a3b8"
+                    font-family="'DM Sans', sans-serif">
+                {{ formatAmount(data.dailyActivity[hoveredLine].totalAmount) }}
+              </text>
+            </g>
+
+          </svg>
+        </div>
+
+        <!-- Axe Y droit — Montants -->
+        <div class="y-axis y-right">
+          <span>{{ shortAmount(maxAmount) }}</span>
+          <span>{{ shortAmount(maxAmount / 2) }}</span>
+          <span>0</span>
+        </div>
+
+      </div>
+
+      <div class="chart-empty" *ngIf="!data.dailyActivity.length">
+        <i class="bi bi-graph-up"></i>
+        <span>Aucune activité enregistrée</span>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 3 — DONUTS                                            -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="charts-row">
+
+      <!-- Donut Transactions -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="bi bi-pie-chart-fill"></i>
+          <span class="chart-title">Débit vs Crédit — Transactions</span>
+          <button class="chart-link-btn" (click)="goToAnalyse()">
+            <i class="bi bi-box-arrow-up-right"></i> Analyse
+          </button>
+        </div>
+        <div class="donut-layout">
+          <svg viewBox="0 0 300 300" class="donut-svg">
+            <circle cx="150" cy="150" r="110" fill="none" stroke="#f0f4fa" stroke-width="44"/>
+            <ng-container *ngFor="let a of debitCreditCountArcs; let i = index">
+              <path *ngIf="a.arc" [attr.d]="a.arc" fill="none"
+                    [attr.stroke]="a.color" stroke-width="44" stroke-linecap="butt"
+                    class="arc-segment"
+                    [class.arc-dimmed]="hoveredDCCount !== null && hoveredDCCount !== i"
+                    [class.arc-active]="hoveredDCCount === i"
+                    (mouseenter)="hoveredDCCount = i"
+                    (mouseleave)="hoveredDCCount = null"/>
+            </ng-container>
+            <ng-container *ngFor="let a of debitCreditCountArcs">
+              <path *ngIf="a.arc" [attr.d]="a.arc" fill="none"
+                    stroke="#ffffff" stroke-width="2"
+                    stroke-linecap="butt" pointer-events="none"/>
+            </ng-container>
+            <circle cx="150" cy="150" r="88" fill="#ffffff"/>
+            <ng-container *ngIf="hoveredDCCount === null">
+              <text x="150" y="138" text-anchor="middle" fill="#6b7fa3"
+                    font-size="10" font-family="'DM Sans',sans-serif" font-weight="500">TRANSACTIONS</text>
+              <text x="150" y="158" text-anchor="middle" fill="#1a2740"
+                    font-size="14" font-family="'Syne',sans-serif" font-weight="700">
+                {{ formatCount(data.kpi.totalTransactions) }}
+              </text>
+              <text x="150" y="173" text-anchor="middle" fill="#6b7fa3"
+                    font-size="9.5" font-family="'DM Sans',sans-serif">au total</text>
+            </ng-container>
+            <ng-container *ngIf="hoveredDCCount === 0">
+              <text x="150" y="136" text-anchor="middle" fill="#6b7fa3"
+                    font-size="10" font-family="'DM Sans',sans-serif">DÉBIT</text>
+              <text x="150" y="158" text-anchor="middle" fill="#c62828"
+                    font-size="26" font-family="'Syne',sans-serif" font-weight="700">
+                {{ data.debitCredit.debitPctCount }}%
+              </text>
+              <text x="150" y="173" text-anchor="middle" fill="#6b7fa3"
+                    font-size="9.5" font-family="'DM Sans',sans-serif">
+                {{ formatCount(data.debitCredit.debitCount) }} tx
+              </text>
+            </ng-container>
+            <ng-container *ngIf="hoveredDCCount === 1">
+              <text x="150" y="136" text-anchor="middle" fill="#6b7fa3"
+                    font-size="10" font-family="'DM Sans',sans-serif">CRÉDIT</text>
+              <text x="150" y="158" text-anchor="middle" fill="#2e7d32"
+                    font-size="26" font-family="'Syne',sans-serif" font-weight="700">
+                {{ data.debitCredit.creditPctCount }}%
+              </text>
+              <text x="150" y="173" text-anchor="middle" fill="#6b7fa3"
+                    font-size="9.5" font-family="'DM Sans',sans-serif">
+                {{ formatCount(data.debitCredit.creditCount) }} tx
+              </text>
+            </ng-container>
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item"
+                 [class.legend-active]="hoveredDCCount === 0"
+                 [class.legend-dimmed]="hoveredDCCount === 1"
+                 (mouseenter)="hoveredDCCount = 0"
+                 (mouseleave)="hoveredDCCount = null">
+              <span class="legend-dot" style="background:#c62828"></span>
+              <div class="legend-text">
+                <div class="legend-name">Débit</div>
+                <div class="legend-sub">
+                  {{ formatCount(data.debitCredit.debitCount) }} tx
+                  · moy. {{ formatAmount(data.debitCredit.avgDebit) }}
+                </div>
+              </div>
+              <span class="legend-pct" style="color:#c62828">{{ data.debitCredit.debitPctCount }}%</span>
+            </div>
+            <div class="legend-item"
+                 [class.legend-active]="hoveredDCCount === 1"
+                 [class.legend-dimmed]="hoveredDCCount === 0"
+                 (mouseenter)="hoveredDCCount = 1"
+                 (mouseleave)="hoveredDCCount = null">
+              <span class="legend-dot" style="background:#2e7d32"></span>
+              <div class="legend-text">
+                <div class="legend-name">Crédit</div>
+                <div class="legend-sub">
+                  {{ formatCount(data.debitCredit.creditCount) }} tx
+                  · moy. {{ formatAmount(data.debitCredit.avgCredit) }}
+                </div>
+              </div>
+              <span class="legend-pct" style="color:#2e7d32">{{ data.debitCredit.creditPctCount }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Donut Montants -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="bi bi-pie-chart-fill"></i>
+          <span class="chart-title">Débit vs Crédit — Montants</span>
+          <button class="chart-link-btn" (click)="goToAnalyse()">
+            <i class="bi bi-box-arrow-up-right"></i> Analyse
+          </button>
+        </div>
+        <div class="donut-layout">
+          <svg viewBox="0 0 300 300" class="donut-svg">
+            <circle cx="150" cy="150" r="110" fill="none" stroke="#f0f4fa" stroke-width="44"/>
+            <ng-container *ngFor="let a of debitCreditAmountArcs; let i = index">
+              <path *ngIf="a.arc" [attr.d]="a.arc" fill="none"
+                    [attr.stroke]="a.color" stroke-width="44" stroke-linecap="butt"
+                    class="arc-segment"
+                    [class.arc-dimmed]="hoveredDCAmount !== null && hoveredDCAmount !== i"
+                    [class.arc-active]="hoveredDCAmount === i"
+                    (mouseenter)="hoveredDCAmount = i"
+                    (mouseleave)="hoveredDCAmount = null"/>
+            </ng-container>
+            <ng-container *ngFor="let a of debitCreditAmountArcs">
+              <path *ngIf="a.arc" [attr.d]="a.arc" fill="none"
+                    stroke="#ffffff" stroke-width="2"
+                    stroke-linecap="butt" pointer-events="none"/>
+            </ng-container>
+            <circle cx="150" cy="150" r="88" fill="#ffffff"/>
+            <ng-container *ngIf="hoveredDCAmount === null">
+              <text x="150" y="135" text-anchor="middle" fill="#6b7fa3"
+                    font-size="10" font-family="'DM Sans',sans-serif" font-weight="500">MONTANTS</text>
+              <text x="150" y="154" text-anchor="middle" fill="#1a2740"
+                    font-size="11" font-family="'Syne',sans-serif" font-weight="700">
+                {{ formatAmount(data.kpi.totalAmount) }}
+              </text>
+              <text x="150" y="170" text-anchor="middle" fill="#6b7fa3"
+                    font-size="9.5" font-family="'DM Sans',sans-serif">TND total</text>
+            </ng-container>
+            <ng-container *ngIf="hoveredDCAmount === 0">
+              <text x="150" y="136" text-anchor="middle" fill="#6b7fa3"
+                    font-size="10" font-family="'DM Sans',sans-serif">DÉBIT</text>
+              <text x="150" y="158" text-anchor="middle" fill="#c62828"
+                    font-size="26" font-family="'Syne',sans-serif" font-weight="700">
+                {{ data.debitCredit.debitPctAmount }}%
+              </text>
+              <text x="150" y="173" text-anchor="middle" fill="#6b7fa3"
+                    font-size="9.5" font-family="'DM Sans',sans-serif">
+                {{ formatAmount(data.debitCredit.debitAmount) }}
+              </text>
+            </ng-container>
+            <ng-container *ngIf="hoveredDCAmount === 1">
+              <text x="150" y="136" text-anchor="middle" fill="#6b7fa3"
+                    font-size="10" font-family="'DM Sans',sans-serif">CRÉDIT</text>
+              <text x="150" y="158" text-anchor="middle" fill="#2e7d32"
+                    font-size="26" font-family="'Syne',sans-serif" font-weight="700">
+                {{ data.debitCredit.creditPctAmount }}%
+              </text>
+              <text x="150" y="173" text-anchor="middle" fill="#6b7fa3"
+                    font-size="9.5" font-family="'DM Sans',sans-serif">
+                {{ formatAmount(data.debitCredit.creditAmount) }}
+              </text>
+            </ng-container>
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item"
+                 [class.legend-active]="hoveredDCAmount === 0"
+                 [class.legend-dimmed]="hoveredDCAmount === 1"
+                 (mouseenter)="hoveredDCAmount = 0"
+                 (mouseleave)="hoveredDCAmount = null">
+              <span class="legend-dot" style="background:#c62828"></span>
+              <div class="legend-text">
+                <div class="legend-name">Débit</div>
+                <div class="legend-sub">{{ formatAmount(data.debitCredit.debitAmount) }}</div>
+              </div>
+              <span class="legend-pct" style="color:#c62828">{{ data.debitCredit.debitPctAmount }}%</span>
+            </div>
+            <div class="legend-item"
+                 [class.legend-active]="hoveredDCAmount === 1"
+                 [class.legend-dimmed]="hoveredDCAmount === 0"
+                 (mouseenter)="hoveredDCAmount = 1"
+                 (mouseleave)="hoveredDCAmount = null">
+              <span class="legend-dot" style="background:#2e7d32"></span>
+              <div class="legend-text">
+                <div class="legend-name">Crédit</div>
+                <div class="legend-sub">{{ formatAmount(data.debitCredit.creditAmount) }}</div>
+              </div>
+              <span class="legend-pct" style="color:#2e7d32">{{ data.debitCredit.creditPctAmount }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 4 — TOP RANKINGS                                      -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="rankings-row">
+
+      <div class="rank-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="bi bi-trophy-fill" style="color:#f59e0b"></i>
+            Top Providers
+          </div>
+          <button class="link-btn" (click)="goToProviders()">
+            <i class="bi bi-arrow-right"></i> Voir tout
+          </button>
+        </div>
+        <div class="rank-list">
+          <div class="rank-row"
+               *ngFor="let p of data.topProviders; let i = index"
+               (click)="goToProviderDetail(p.id)">
+            <span class="rank-num"
+                  [style.background]="i===0?'#f59e0b':i===1?'#94a3b8':'#b45309'"
+                  [style.color]="'#fff'">{{ i + 1 }}</span>
+            <div class="rank-avatar prov-avatar">{{ providerInitials(p.providerName) }}</div>
+            <div class="rank-info">
+              <div class="rank-name">{{ p.providerName }}</div>
+              <div class="rank-sub"><span class="code-chip">{{ p.providerCode }}</span></div>
+            </div>
+            <div class="rank-right">
+              <div class="rank-val">{{ formatCount(p.transactionCount) }} tx</div>
+              <div class="rank-bar-wrap">
+                <div class="rank-bar-fill" style="background:#1565c0"
+                     [style.width.%]="p.percentCount"></div>
+              </div>
+              <div class="rank-pct">{{ p.percentCount }}%</div>
+            </div>
+            <i class="bi bi-chevron-right rank-arrow"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="rank-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="bi bi-grid-fill" style="color:#6a1b9a"></i>
+            Top Catégories
+          </div>
+          <button class="link-btn" (click)="goToAnalyse()">
+            <i class="bi bi-arrow-right"></i> Analyse
+          </button>
+        </div>
+        <div class="rank-list">
+          <div class="rank-row"
+               *ngFor="let c of data.topCategories; let i = index">
+            <span class="rank-num"
+                  [style.background]="getCatColor(i)"
+                  [style.color]="'#fff'">{{ i + 1 }}</span>
+            <div class="cat-icon-wrap"
+                 [style.background]="getCatColor(i) + '18'"
+                 [style.color]="getCatColor(i)">
+              <i class="bi bi-grid"></i>
+            </div>
+            <div class="rank-info">
+              <div class="rank-name">{{ c.category }}</div>
+              <div class="rank-sub">{{ formatAmount(c.totalAmount) }}</div>
+            </div>
+            <div class="rank-right">
+              <div class="rank-val">{{ formatCount(c.transactionCount) }} tx</div>
+              <div class="rank-bar-wrap">
+                <div class="rank-bar-fill"
+                     [style.background]="getCatColor(i)"
+                     [style.width.%]="c.percentCount"></div>
+              </div>
+              <div class="rank-pct" [style.color]="getCatColor(i)">{{ c.percentCount }}%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>

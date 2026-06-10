@@ -1,0 +1,484 @@
+<div class="nf-page">
+
+    <!-- ═══════════════ HEADER ═══════════════ -->
+    <header class="nf-header">
+        <div class="nf-header-left">
+            <span class="nf-header-tag">
+                <i class="bi bi-bell-fill"></i> MESSAGERIE
+            </span>
+            <h1>Notifications <span class="nf-accent">push</span></h1>
+            <p class="nf-subtitle">
+                <i class="bi bi-broadcast"></i>
+                Composez, planifiez et suivez les notifications envoyées aux clients SmartWallet.
+            </p>
+        </div>
+        <div class="nf-header-actions">
+            <button class="nf-btn-ghost" (click)="toggleAutoRefresh()" [class.active]="autoRefresh">
+                <i class="bi" [class.bi-arrow-clockwise]="!autoRefresh" [class.bi-pause-circle]="autoRefresh"></i>
+                {{ autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF' }}
+            </button>
+            <button class="nf-btn-ghost" (click)="loadHistory()" [disabled]="loadingHistory">
+                <i class="bi bi-arrow-repeat" [class.spin]="loadingHistory"></i> Actualiser
+            </button>
+        </div>
+    </header>
+
+    <!-- ═══════════════ KPI CARDS ═══════════════ -->
+    <section class="nf-kpi-grid">
+        <div class="nf-kpi nf-kpi-blue">
+            <div class="nf-kpi-icon"><i class="bi bi-send-fill"></i></div>
+            <div>
+                <div class="nf-kpi-label">Envoyées aujourd'hui</div>
+                <div class="nf-kpi-value">{{ kpiTotalToday }}</div>
+            </div>
+        </div>
+        <div class="nf-kpi nf-kpi-red">
+            <div class="nf-kpi-icon"><i class="bi bi-exclamation-octagon-fill"></i></div>
+            <div>
+                <div class="nf-kpi-label">Critiques (7j)</div>
+                <div class="nf-kpi-value">{{ kpiCriticalWeek }}</div>
+            </div>
+        </div>
+        <div class="nf-kpi nf-kpi-green">
+            <div class="nf-kpi-icon"><i class="bi bi-person-fill-gear"></i></div>
+            <div>
+                <div class="nf-kpi-label">Manuelles admin</div>
+                <div class="nf-kpi-value">{{ kpiManualCount }}</div>
+            </div>
+        </div>
+        <div class="nf-kpi nf-kpi-purple">
+            <div class="nf-kpi-icon"><i class="bi bi-robot"></i></div>
+            <div>
+                <div class="nf-kpi-label">Système / auto</div>
+                <div class="nf-kpi-value">{{ kpiSystemCount }}</div>
+            </div>
+        </div>
+        <div class="nf-kpi nf-kpi-orange">
+            <div class="nf-kpi-icon"><i class="bi bi-calendar-check"></i></div>
+            <div>
+                <div class="nf-kpi-label">Programmées</div>
+                <div class="nf-kpi-value">{{ kpiScheduled }}</div>
+            </div>
+        </div>
+        <div class="nf-kpi nf-kpi-gray">
+            <div class="nf-kpi-icon"><i class="bi bi-x-octagon-fill"></i></div>
+            <div>
+                <div class="nf-kpi-label">Échecs</div>
+                <div class="nf-kpi-value">{{ kpiFailed }}</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════ TABS ═══════════════ -->
+    <nav class="nf-tabs">
+        <button [class.active]="activeTab === 'compose'" (click)="setTab('compose')">
+            <i class="bi bi-pencil-square"></i> Composer
+        </button>
+        <button [class.active]="activeTab === 'critical'" (click)="setTab('critical')" class="nf-tab-critical">
+            <i class="bi bi-exclamation-octagon-fill"></i> Critiques
+            <span class="nf-tab-badge" *ngIf="kpiCriticalWeek > 0">{{ kpiCriticalWeek }}</span>
+        </button>
+        <button [class.active]="activeTab === 'manual'" (click)="setTab('manual')">
+            <i class="bi bi-person-fill-gear"></i> Manuelles (admin)
+            <span class="nf-tab-badge nf-tab-badge-green" *ngIf="kpiManualCount > 0">{{ kpiManualCount }}</span>
+        </button>
+        <button [class.active]="activeTab === 'system'" (click)="setTab('system')">
+            <i class="bi bi-robot"></i> Système (recommandations)
+            <span class="nf-tab-badge nf-tab-badge-purple" *ngIf="kpiSystemCount > 0">{{ kpiSystemCount }}</span>
+        </button>
+    </nav>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB 1 — COMPOSER
+         ════════════════════════════════════════════════════════════ -->
+    <section *ngIf="activeTab === 'compose'" class="nf-content">
+
+        <div class="nf-compose-grid">
+
+            <!-- Formulaire principal -->
+            <div class="nf-card nf-card-compose">
+                <div class="nf-card-header">
+                    <h2><i class="bi bi-pencil-square"></i> Composer une notification</h2>
+                </div>
+
+                <div class="nf-form">
+                    <!-- Destinataire -->
+                    <div class="nf-form-section">
+                        <h3>1. Destinataire</h3>
+                        <label class="nf-checkbox">
+                            <input type="checkbox" [(ngModel)]="nfAll">
+                            <span>Envoyer à <strong>tous les clients SmartWallet</strong></span>
+                        </label>
+                        <div *ngIf="!nfAll" class="nf-input-group">
+                            <label>Client ID (UUID ou identifiant)</label>
+                            <input type="text" [(ngModel)]="nfCid" placeholder="ex: 3f8a7b2c-... ou abc-123">
+                        </div>
+                    </div>
+
+                    <!-- Type -->
+                    <div class="nf-form-section">
+                        <h3>2. Type de notification</h3>
+                        <div class="nf-type-picker">
+                            <label class="nf-type-card nf-type-info"
+                                   [class.selected]="nfType === 'INFO'">
+                                <input type="radio" [(ngModel)]="nfType" value="INFO">
+                                <i class="bi bi-info-circle-fill"></i>
+                                <strong>Information</strong>
+                                <small>Annonce, news, mise à jour</small>
+                            </label>
+                            <label class="nf-type-card nf-type-attention"
+                                   [class.selected]="nfType === 'ATTENTION'">
+                                <input type="radio" [(ngModel)]="nfType" value="ATTENTION">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                <strong>Attention</strong>
+                                <small>Avertissement, action requise</small>
+                            </label>
+                            <label class="nf-type-card nf-type-urgent"
+                                   [class.selected]="nfType === 'URGENT'">
+                                <input type="radio" [(ngModel)]="nfType" value="URGENT">
+                                <i class="bi bi-exclamation-octagon-fill"></i>
+                                <strong>Urgent</strong>
+                                <small>Critique, action immédiate</small>
+                            </label>
+                            <label class="nf-type-card nf-type-promo"
+                                   [class.selected]="nfType === 'PROMO'">
+                                <input type="radio" [(ngModel)]="nfType" value="PROMO">
+                                <i class="bi bi-gift-fill"></i>
+                                <strong>Promo</strong>
+                                <small>Offre commerciale, cadeau</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Contenu -->
+                    <div class="nf-form-section">
+                        <h3>3. Contenu du message</h3>
+                        <div class="nf-input-group">
+                            <label>Titre <span class="nf-required">*</span>
+                                <span class="nf-char-count">{{ nfTitre.length }}/100</span>
+                            </label>
+                            <input type="text" [(ngModel)]="nfTitre" maxlength="100"
+                                   placeholder="Ex: Votre facture STEG arrive bientôt">
+                        </div>
+                        <div class="nf-input-group">
+                            <label>Message <span class="nf-required">*</span>
+                                <span class="nf-char-count">{{ nfMsg.length }}/500</span>
+                            </label>
+                            <textarea [(ngModel)]="nfMsg" maxlength="500" rows="4"
+                                      placeholder="Bonjour,&#10;&#10;Votre facture de 87 TND arrive à échéance dans 3 jours..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Planification -->
+                    <div class="nf-form-section">
+                        <h3>4. Planification <span class="nf-optional">(optionnel)</span></h3>
+                        <div class="nf-input-group">
+                            <label>Date/heure d'envoi</label>
+                            <input type="datetime-local" [(ngModel)]="nfScheduleDate">
+                            <small class="nf-hint">Laissez vide pour envoyer immédiatement</small>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="nf-form-actions">
+                        <button class="nf-btn-primary" (click)="send()"
+                                [disabled]="nfSending || nfScheduleDate">
+                            <i class="bi" [class.bi-send-fill]="!nfSending" [class.bi-hourglass-split]="nfSending"></i>
+                            {{ nfSending ? 'Envoi…' : 'Envoyer maintenant' }}
+                        </button>
+                        <button class="nf-btn-secondary" (click)="schedule()"
+                                [disabled]="nfSending || !nfScheduleDate">
+                            <i class="bi bi-calendar-check"></i>
+                            {{ nfSending ? 'Planification…' : 'Planifier' }}
+                        </button>
+                    </div>
+
+                    <div *ngIf="nfResult" class="nf-result"
+                         [class.nf-result-success]="!isError" [class.nf-result-error]="isError">
+                        {{ nfResult }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aperçu live -->
+            <div class="nf-card nf-card-preview">
+                <div class="nf-card-header">
+                    <h2><i class="bi bi-eye"></i> Aperçu mobile</h2>
+                </div>
+                <div class="nf-preview-phone">
+                    <div class="nf-preview-notch"></div>
+                    <div class="nf-preview-screen">
+                        <div class="nf-preview-status">9:41 · SmartWallet</div>
+                        <div class="nf-preview-notif" [style.borderLeftColor]="typeColor(nfType)">
+                            <div class="nf-preview-header">
+                                <i class="bi" [class]="typeIcon(nfType)" [style.color]="typeColor(nfType)"></i>
+                                <span class="nf-preview-app">SmartWallet</span>
+                                <span class="nf-preview-time">maintenant</span>
+                            </div>
+                            <div class="nf-preview-title">{{ nfTitre || 'Titre de la notification' }}</div>
+                            <div class="nf-preview-body">{{ nfMsg || 'Aperçu du message…' }}</div>
+                            <div class="nf-preview-target" *ngIf="nfAll || nfCid">
+                                <i class="bi bi-person"></i>
+                                {{ nfAll ? 'Tous les clients' : 'Client ' + shortId(nfCid) }}
+                            </div>
+                        </div>
+                        <div class="nf-preview-info">
+                            Affichage simulé — l'apparence réelle dépend du device Android/iOS.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB 2 — CRITIQUES
+         ════════════════════════════════════════════════════════════ -->
+    <section *ngIf="activeTab === 'critical'" class="nf-content">
+        <div class="nf-card">
+            <div class="nf-card-header-filter">
+                <h2><i class="bi bi-exclamation-octagon-fill" style="color:#dc2626"></i>
+                    Notifications critiques & urgentes</h2>
+                <div class="nf-filters">
+                    <select [(ngModel)]="filterCriticalSeverity">
+                        <option value="all">Toutes (URGENT + CRITIQUE)</option>
+                        <option value="URGENT">Urgent uniquement</option>
+                        <option value="CRITIQUE">Critique uniquement</option>
+                    </select>
+                    <input type="text" [(ngModel)]="searchQuery" placeholder="Rechercher…">
+                </div>
+            </div>
+
+            <p class="nf-info">
+                ⚠️ Notifications de niveau <strong>URGENT</strong> ou <strong>CRITIQUE</strong>.
+                Triées par date décroissante. Demandent souvent une réaction immédiate du client.
+            </p>
+
+            <div *ngIf="loadingHistory && filteredCritical.length === 0" class="nf-empty">
+                Chargement…
+            </div>
+
+            <div *ngIf="!loadingHistory && filteredCritical.length === 0" class="nf-empty">
+                <i class="bi bi-shield-check"></i>
+                <p><strong>Aucune notification critique</strong></p>
+                <small>Aucune alerte URGENT/CRITIQUE n'a été émise récemment.</small>
+            </div>
+
+            <ul *ngIf="filteredCritical.length > 0" class="nf-list">
+                <li *ngFor="let n of filteredCritical; trackBy: trackByNotif" class="nf-item nf-item-critical">
+                    <div class="nf-item-icon" [style.background]="typeColor(n.type) + '20'"
+                         [style.color]="typeColor(n.type)">
+                        <i class="bi" [class]="typeIcon(n.type)"></i>
+                    </div>
+                    <div class="nf-item-content">
+                        <div class="nf-item-header">
+              <span class="nf-pill" [style.background]="typeColor(n.type) + '20'"
+                    [style.color]="typeColor(n.type)">
+                {{ typeLabel(n.type) }}
+              </span>
+                            <span class="nf-pill nf-pill-status"
+                                  [style.background]="statusColor(n.statut) + '20'"
+                                  [style.color]="statusColor(n.statut)">
+                {{ statusLabel(n.statut) }}
+              </span>
+                            <span class="nf-item-date">
+                {{ fmtDate(n.date_envoi || n.date_planifiee) }}
+                                <small *ngIf="fmtRelative(n.date_envoi)">· {{ fmtRelative(n.date_envoi) }}</small>
+              </span>
+                        </div>
+                        <div class="nf-item-title">{{ n.titre || '(sans titre)' }}</div>
+                        <div class="nf-item-msg" *ngIf="n.message">{{ n.message }}</div>
+                        <div class="nf-item-footer">
+              <span class="nf-mono">
+                <i class="bi bi-person"></i>
+                  {{ n.client_id === 'ALL' ? 'Tous les clients' : shortId(n.client_id) }}
+              </span>
+                            <span *ngIf="n.envoye_par">
+                <i class="bi bi-tag"></i> {{ n.envoye_par }}
+              </span>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="nf-pagination" *ngIf="currentTabTotal > histPageSize">
+                <button (click)="prevPage()" [disabled]="histPage === 0">
+                    <i class="bi bi-chevron-left"></i> Précédent
+                </button>
+                <span>Page {{ histPage + 1 }} sur {{ Math.ceil(currentTabTotal / histPageSize) }}</span>
+                <button (click)="nextPage()" [disabled]="(histPage + 1) * histPageSize >= currentTabTotal">
+                    Suivant <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB 3 — MANUELLES (admin)
+         ════════════════════════════════════════════════════════════ -->
+    <section *ngIf="activeTab === 'manual'" class="nf-content">
+        <div class="nf-card">
+            <div class="nf-card-header-filter">
+                <h2><i class="bi bi-person-fill-gear" style="color:#10b981"></i>
+                    Notifications manuelles (envoyées depuis l'admin)</h2>
+                <div class="nf-filters">
+                    <select [(ngModel)]="filterManualType">
+                        <option value="all">Tous les types</option>
+                        <option value="INFO">Info</option>
+                        <option value="ATTENTION">Attention</option>
+                        <option value="PROMO">Promo</option>
+                        <option value="URGENT">Urgent</option>
+                    </select>
+                    <input type="text" [(ngModel)]="searchQuery" placeholder="Rechercher…">
+                </div>
+            </div>
+
+            <p class="nf-info">
+                👤 Notifications composées et envoyées <strong>manuellement par l'admin</strong>
+                depuis cet écran. Types : INFO, ATTENTION, PROMO, URGENT.
+            </p>
+
+            <div *ngIf="loadingHistory && filteredManual.length === 0" class="nf-empty">
+                Chargement…
+            </div>
+
+            <div *ngIf="!loadingHistory && filteredManual.length === 0" class="nf-empty">
+                <i class="bi bi-pencil-square"></i>
+                <p><strong>Aucune notification manuelle</strong></p>
+                <small>Va dans l'onglet "Composer" pour envoyer une notification.</small>
+            </div>
+
+            <ul *ngIf="filteredManual.length > 0" class="nf-list">
+                <li *ngFor="let n of filteredManual; trackBy: trackByNotif" class="nf-item">
+                    <div class="nf-item-icon" [style.background]="typeColor(n.type) + '20'"
+                         [style.color]="typeColor(n.type)">
+                        <i class="bi" [class]="typeIcon(n.type)"></i>
+                    </div>
+                    <div class="nf-item-content">
+                        <div class="nf-item-header">
+              <span class="nf-pill" [style.background]="typeColor(n.type) + '20'"
+                    [style.color]="typeColor(n.type)">
+                {{ typeLabel(n.type) }}
+              </span>
+                            <span class="nf-pill nf-pill-status"
+                                  [style.background]="statusColor(n.statut) + '20'"
+                                  [style.color]="statusColor(n.statut)">
+                {{ statusLabel(n.statut) }}
+              </span>
+                            <span class="nf-item-date">
+                {{ fmtDate(n.date_envoi || n.date_planifiee) }}
+                                <small *ngIf="fmtRelative(n.date_envoi)">· {{ fmtRelative(n.date_envoi) }}</small>
+              </span>
+                        </div>
+                        <div class="nf-item-title">{{ n.titre || '(sans titre)' }}</div>
+                        <div class="nf-item-msg" *ngIf="n.message">{{ n.message }}</div>
+                        <div class="nf-item-footer">
+              <span class="nf-mono">
+                <i class="bi bi-person"></i>
+                  {{ n.client_id === 'ALL' ? 'Tous les clients' : shortId(n.client_id) }}
+              </span>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="nf-pagination" *ngIf="currentTabTotal > histPageSize">
+                <button (click)="prevPage()" [disabled]="histPage === 0">
+                    <i class="bi bi-chevron-left"></i> Précédent
+                </button>
+                <span>Page {{ histPage + 1 }} sur {{ Math.ceil(currentTabTotal / histPageSize) }}</span>
+                <button (click)="nextPage()" [disabled]="(histPage + 1) * histPageSize >= currentTabTotal">
+                    Suivant <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB 4 — SYSTÈME (recommandations / schedulers)
+         ════════════════════════════════════════════════════════════ -->
+    <section *ngIf="activeTab === 'system'" class="nf-content">
+        <div class="nf-card">
+            <div class="nf-card-header-filter">
+                <h2><i class="bi bi-robot" style="color:#a855f7"></i>
+                    Notifications système (recommandations & schedulers)</h2>
+                <div class="nf-filters">
+                    <select [(ngModel)]="filterSystemType">
+                        <option value="all">Tous les types</option>
+                        <option value="OFFRE">Offres marketing</option>
+                        <option value="BILL_REMINDER">Rappels factures</option>
+                        <option value="BALANCE_ALERT">Alertes solde</option>
+                        <option value="WEEKLY_SUMMARY">Bilans hebdo</option>
+                        <option value="OCR_REMINDER">Scans OCR</option>
+                    </select>
+                    <input type="text" [(ngModel)]="searchQuery" placeholder="Rechercher…">
+                </div>
+            </div>
+
+            <p class="nf-info">
+                🤖 Notifications <strong>générées automatiquement</strong> par les schedulers et les
+                modules ML : recommandations marketing, rappels factures (Module 1),
+                alertes solde (Module 5), bilans hebdomadaires, rappels OCR.
+            </p>
+
+            <div *ngIf="loadingHistory && filteredSystem.length === 0" class="nf-empty">
+                Chargement…
+            </div>
+
+            <div *ngIf="!loadingHistory && filteredSystem.length === 0" class="nf-empty">
+                <i class="bi bi-robot"></i>
+                <p><strong>Aucune notification système</strong></p>
+                <small>Les schedulers tournent à des heures précises (cf. onglet Schedulers de IA Admin).</small>
+            </div>
+
+            <ul *ngIf="filteredSystem.length > 0" class="nf-list">
+                <li *ngFor="let n of filteredSystem; trackBy: trackByNotif" class="nf-item">
+                    <div class="nf-item-icon" [style.background]="typeColor(n.type) + '20'"
+                         [style.color]="typeColor(n.type)">
+                        <i class="bi" [class]="typeIcon(n.type)"></i>
+                    </div>
+                    <div class="nf-item-content">
+                        <div class="nf-item-header">
+              <span class="nf-pill" [style.background]="typeColor(n.type) + '20'"
+                    [style.color]="typeColor(n.type)">
+                {{ typeLabel(n.type) }}
+              </span>
+                            <span class="nf-pill nf-pill-status"
+                                  [style.background]="statusColor(n.statut) + '20'"
+                                  [style.color]="statusColor(n.statut)">
+                {{ statusLabel(n.statut) }}
+              </span>
+                            <span class="nf-item-date">
+                {{ fmtDate(n.date_envoi || n.date_planifiee) }}
+                                <small *ngIf="fmtRelative(n.date_envoi)">· {{ fmtRelative(n.date_envoi) }}</small>
+              </span>
+                        </div>
+                        <div class="nf-item-title">{{ n.titre || '(sans titre)' }}</div>
+                        <div class="nf-item-msg" *ngIf="n.message">{{ n.message }}</div>
+                        <div class="nf-item-footer">
+              <span class="nf-mono">
+                <i class="bi bi-person"></i>
+                  {{ n.client_id === 'ALL' ? 'Tous les clients' : shortId(n.client_id) }}
+              </span>
+                            <span *ngIf="n.envoye_par && n.envoye_par !== 'ADMIN'">
+                <i class="bi bi-tag"></i> {{ n.envoye_par }}
+              </span>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="nf-pagination" *ngIf="currentTabTotal > histPageSize">
+                <button (click)="prevPage()" [disabled]="histPage === 0">
+                    <i class="bi bi-chevron-left"></i> Précédent
+                </button>
+                <span>Page {{ histPage + 1 }} sur {{ Math.ceil(currentTabTotal / histPageSize) }}</span>
+                <button (click)="nextPage()" [disabled]="(histPage + 1) * histPageSize >= currentTabTotal">
+                    Suivant <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+</div>

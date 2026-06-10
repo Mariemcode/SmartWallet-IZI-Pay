@@ -1,0 +1,14 @@
+[
+  {
+    "analysed_at": "2026-04-16T15:29:43.435651",
+    "feedbacks_total": 1,
+    "patterns": {
+      "STEG": {
+        "taux_succes": 0.0,
+        "total": 1,
+        "exemples_corrections": [],
+        "recommandation": "pattern_a_revoir_manuellement"
+      }
+    }
+  }
+]

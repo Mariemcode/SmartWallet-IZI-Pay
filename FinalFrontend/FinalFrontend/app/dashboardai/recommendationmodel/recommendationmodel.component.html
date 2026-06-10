@@ -1,0 +1,939 @@
+<div class="modelinfo-page">
+
+  <!-- ── Header ───────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+      <span class="header-tag">
+        <i class="bi bi-cpu"></i> MOTEUR IA
+      </span>
+      <h1>Modèle de <span class="accent">Recommandation</span></h1>
+      <p class="subtitle">
+        <i class="bi bi-bar-chart-line"></i>
+        Tableau de bord administrateur — métriques, supervision &amp; feedback marketing
+      </p>
+    </div>
+
+    <div class="controls-bar">
+      <div class="eval-group">
+        <label><i class="bi bi-sliders"></i> Type d'évaluation</label>
+        <select [(ngModel)]="evaluationType" (change)="onEvaluationChange()">
+          <option value="simulated">Simulée</option>
+          <option value="real">Réelle</option>
+        </select>
+      </div>
+
+      <div class="controls-sep"></div>
+
+      <button class="btn-regen" (click)="regenerateOffers()" [disabled]="regeneratingOffers">
+        <i class="bi" [ngClass]="regeneratingOffers ? 'bi-hourglass-split' : 'bi-arrow-repeat'"></i>
+        <span *ngIf="!regeneratingOffers">Régénérer les offres</span>
+        <span *ngIf="regeneratingOffers">Régénération offres…</span>
+      </button>
+
+      <button class="btn-regen" (click)="regenerateRecommendations()" [disabled]="regeneratingRecos">
+        <i class="bi" [ngClass]="regeneratingRecos ? 'bi-hourglass-split' : 'bi-arrow-repeat'"></i>
+        <span *ngIf="!regeneratingRecos">Régénérer les recommandations</span>
+        <span *ngIf="regeneratingRecos">Régénération reco…</span>
+      </button>
+
+      <button class="btn-refresh" (click)="loadAllData(); loadMarketingAll()">
+        <i class="bi bi-arrow-clockwise"></i> Actualiser
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Toast notification ──────────────────────────────────────── -->
+  <div class="toast" *ngIf="notificationMessage" [ngClass]="notificationType">
+    <i class="bi" [ngClass]="notificationType === 'success' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'"></i>
+    {{ notificationMessage }}
+    <button class="toast-close" (click)="clearNotification()">
+      <i class="bi bi-x"></i>
+    </button>
+  </div>
+
+  <!-- ── Alertes santé ────────────────────────────────────────────── -->
+  <div class="alerts-section" *ngIf="alerts.length">
+    <div class="alerts-title">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      Alertes du moteur de recommandation
+    </div>
+    <div *ngFor="let alert of alerts" class="alert-item" [ngClass]="getSeverityClass(alert.severity)">
+      <i class="bi" [ngClass]="alert.severity === 'critical' ? 'bi-x-octagon-fill' : 'bi-exclamation-circle-fill'"></i>
+      <span class="alert-msg">
+        <strong>{{ alert.type }}</strong> — {{ alert.message }}
+      </span>
+      <span class="alert-badge" *ngIf="alert.profile">{{ alert.profile }}</span>
+    </div>
+  </div>
+
+  <!-- ── Barre d'onglets ──────────────────────────────────────────── -->
+  <div class="tabs-bar">
+    <button class="tab-btn" [class.active]="activeTab === 'model'" (click)="setTab('model')">
+      <i class="bi bi-cpu"></i> Modèle
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'overview'" (click)="setTab('overview')">
+      <i class="bi bi-grid"></i> Vue d'ensemble
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'offers'" (click)="setTab('offers')">
+      <i class="bi bi-tag"></i> Par offre <span class="tab-count">{{ offerStats.length }}</span>
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'profiles'" (click)="setTab('profiles')">
+      <i class="bi bi-people"></i> Par profil <span class="tab-count">{{ profileStats.length }}</span>
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'interactions'" (click)="setTab('interactions')">
+      <i class="bi bi-activity"></i> Interactions <span class="tab-count">{{ totalInteractions }}</span>
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'recos'" (click)="setTab('recos')">
+      <i class="bi bi-megaphone"></i> Recos envoyées
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'applications'" (click)="setTab('applications')">
+      <i class="bi bi-lightning"></i> Effets actifs <span class="tab-count">{{ activeApps }}</span>
+    </button>
+
+    <div class="tabs-spacer"></div>
+
+    <button class="tab-btn tab-btn-toggle" (click)="toggleAutoRefresh()" [class.active]="autoRefresh">
+      <i class="bi" [class.bi-arrow-clockwise]="!autoRefresh" [class.bi-pause-circle]="autoRefresh"></i>
+      {{ autoRefresh ? 'Auto ON' : 'Auto OFF' }}
+    </button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       ONGLET : MODÈLE (vue d'origine RecommendationModel)
+       ════════════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="activeTab === 'model'">
+
+    <!-- ── Loader ───────────────────────────────────────────────────── -->
+    <div class="loader-wrap" *ngIf="loading">
+      <div class="loader-ring"></div>
+      <span>Chargement des données…</span>
+    </div>
+
+    <!-- ── Dashboard ────────────────────────────────────────────────── -->
+    <div class="dashboard" *ngIf="!loading">
+
+      <!-- ── KPI Row ──────────────────────────────────────────────── -->
+      <div class="kpi-row" *ngIf="metricsSummary">
+
+        <div class="kpi-card kpi-purple">
+          <div class="kpi-icon-wrap"><i class="bi bi-bullseye"></i></div>
+          <div>
+            <div class="kpi-label">Précision moyenne</div>
+            <div class="kpi-value">{{ metricsSummary.avgPrecision | number:'1.2-2' }}</div>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-icon-wrap"><i class="bi bi-funnel"></i></div>
+          <div>
+            <div class="kpi-label">Rappel moyen</div>
+            <div class="kpi-value">{{ metricsSummary.avgRecall | number:'1.2-2' }}</div>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-green">
+          <div class="kpi-icon-wrap"><i class="bi bi-trophy"></i></div>
+          <div>
+            <div class="kpi-label">F1 moyen</div>
+            <div class="kpi-value">{{ metricsSummary.avgF1 | number:'1.2-2' }}</div>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-indigo">
+          <div class="kpi-icon-wrap"><i class="bi bi-people"></i></div>
+          <div>
+            <div class="kpi-label">Nombre de profils</div>
+            <div class="kpi-value">{{ metricsSummary.nProfiles }}</div>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-teal">
+          <div class="kpi-icon-wrap"><i class="bi bi-graph-up"></i></div>
+          <div>
+            <div class="kpi-label">Type évaluation</div>
+            <div class="kpi-value" style="font-size:1rem; text-transform:capitalize">
+              {{ metricsSummary.evaluationType }}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Métriques par profil ──────────────────────────────────── -->
+      <div class="section-card" *ngIf="metricsList.length > 0">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="bi bi-diagram-3"></i>
+            Métriques par profil comportemental
+          </div>
+          <span class="section-count">{{ metricsList.length }} profils</span>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th><i class="bi bi-hash"></i></th>
+              <th><i class="bi bi-person-badge"></i> Profil</th>
+              <th><i class="bi bi-bullseye"></i> Précision</th>
+              <th><i class="bi bi-funnel"></i> Rappel</th>
+              <th><i class="bi bi-trophy"></i> F1</th>
+              <th><i class="bi bi-grid"></i> Couverture</th>
+              <th><i class="bi bi-hand-thumbs-up"></i> Acceptation</th>
+              <th><i class="bi bi-star"></i> Score moy.</th>
+              <th><i class="bi bi-list-ol"></i> Nb reco</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let m of metricsList; let i = index">
+              <td><span class="rank-badge">{{ i + 1 }}</span></td>
+              <td>
+                <div class="profile-cell">
+                  <span class="profile-dot"></span>
+                  <span class="profile-name">{{ m.profileName }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="bar-cell">
+                  <div class="bar-track">
+                    <div class="bar-fill" [style.width.%]="m.precisionScore * 100"></div>
+                  </div>
+                  <span class="bar-pct">{{ m.precisionScore | number:'1.2-2' }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="bar-cell">
+                  <div class="bar-track">
+                    <div class="bar-fill" [style.width.%]="m.recallScore * 100" style="background:#1565c0"></div>
+                  </div>
+                  <span class="bar-pct">{{ m.recallScore | number:'1.2-2' }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="bar-cell">
+                  <div class="bar-track">
+                    <div class="bar-fill" [style.width.%]="m.f1Score * 100" style="background:#2e7d32"></div>
+                  </div>
+                  <span class="bar-pct">{{ m.f1Score | number:'1.2-2' }}</span>
+                </div>
+              </td>
+              <td>{{ m.coverage | number:'1.2-2' }}%</td>
+              <td>{{ m.acceptanceRate | number:'1.2-2' }}%</td>
+              <td><span class="metric-val">{{ m.avgScore | number:'1.2-2' }}</span></td>
+              <td><span class="code-tag">{{ m.nRecommendations }}</span></td>
+              <td>
+                <button class="btn-history" (click)="showHistory(m.profileName)">
+                  <i class="bi bi-clock-history"></i> Historique
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── Top 5 offres ──────────────────────────────────────────── -->
+      <div class="section-card" *ngIf="topOffers.length">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="bi bi-award"></i>
+            Top 5 offres les plus recommandées
+          </div>
+          <span class="section-count">par score moyen</span>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th><i class="bi bi-hash"></i></th>
+              <th><i class="bi bi-upc"></i> Code offre</th>
+              <th><i class="bi bi-card-text"></i> Titre complet</th>
+              <th><i class="bi bi-people"></i> Profils cibles</th>
+              <th><i class="bi bi-star-half"></i> Score moyen</th>
+              <th><i class="bi bi-repeat"></i> Occurrences</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let offer of topOffers; let i = index">
+              <td>
+                <span class="rank-badge">{{ i + 1 }}</span>
+              </td>
+              <td><span class="code-tag">{{ offer.offerCode }}</span></td>
+              <td class="offer-title-cell">{{ offer.offerTitle }}</td>
+              <td class="offer-targets-cell">
+                <ng-container *ngIf="offer.targetProfiles && offer.targetProfiles.length > 0">
+                  <span class="target-chip" *ngFor="let p of offer.targetProfiles">{{ p }}</span>
+                </ng-container>
+                <span class="target-chip" *ngIf="!offer.targetProfiles || offer.targetProfiles.length === 0">
+                  Tous profils
+                </span>
+              </td>
+              <td>
+                <div class="bar-cell">
+                  <div class="bar-track">
+                    <div class="bar-fill" [style.width.%]="offer.avgScore * 100"></div>
+                  </div>
+                  <span class="bar-pct">{{ offer.avgScore | number:'1.2-2' }}</span>
+                </div>
+              </td>
+              <td><span class="metric-val">{{ offer.count }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── Historique runs – offres ──────────────────────────────── -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="bi bi-arrow-repeat"></i>
+            Historique de régénération des offres
+          </div>
+          <span class="section-count">{{ offerGenerationRuns.length }} runs</span>
+        </div>
+
+        <div class="empty-card" *ngIf="offerGenerationRuns.length === 0">
+          <i class="bi bi-inbox"></i>
+          <span>Aucun run de génération d'offres trouvé.</span>
+        </div>
+
+        <table class="data-table" *ngIf="offerGenerationRuns.length > 0">
+          <thead>
+            <tr>
+              <th><i class="bi bi-fingerprint"></i> Run ID</th>
+              <th><i class="bi bi-circle-half"></i> Statut</th>
+              <th><i class="bi bi-play-circle"></i> Début</th>
+              <th><i class="bi bi-stop-circle"></i> Fin</th>
+              <th><i class="bi bi-people"></i> Profils</th>
+              <th><i class="bi bi-gift"></i> Offres gén.</th>
+              <th><i class="bi bi-plus-circle"></i> Nouvelles</th>
+              <th><i class="bi bi-dash-circle"></i> Désactivées</th>
+              <th><i class="bi bi-exclamation-circle"></i> Erreur</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let run of offerGenerationRuns">
+              <td><span class="code-tag">{{ run.runId }}</span></td>
+              <td>
+                <span class="status-badge"
+                  [class.success]="run.status === 'DONE'"
+                  [class.failed]="run.status === 'FAILED'"
+                  [class.running]="run.status === 'RUNNING'">
+                  <i class="bi"
+                    [ngClass]="{
+                      'bi-check-circle-fill': run.status === 'DONE',
+                      'bi-x-circle-fill': run.status === 'FAILED',
+                      'bi-hourglass-split': run.status === 'RUNNING'
+                    }"></i>
+                  {{ run.status }}
+                </span>
+              </td>
+              <td>{{ formatDate(run.startedAt) }}</td>
+              <td>{{ run.finishedAt ? formatDate(run.finishedAt!) : '—' }}</td>
+              <td>{{ run.nProfiles }}</td>
+              <td>{{ run.nOffersGen }}</td>
+              <td>{{ run.nOffersNew }}</td>
+              <td>{{ run.nOffersDeact }}</td>
+              <td style="color:#c62828; font-size:0.8rem">{{ run.errorMsg || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── Historique runs – recommandations ────────────────────── -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="bi bi-arrow-repeat"></i>
+            Historique de régénération des recommandations
+          </div>
+          <span class="section-count">{{ recommendationGenerationRuns.length }} runs</span>
+        </div>
+
+        <div class="empty-card" *ngIf="recommendationGenerationRuns.length === 0">
+          <i class="bi bi-inbox"></i>
+          <span>Aucun run de génération de recommandations trouvé.</span>
+        </div>
+
+        <table class="data-table" *ngIf="recommendationGenerationRuns.length > 0">
+          <thead>
+            <tr>
+              <th><i class="bi bi-fingerprint"></i> Run ID</th>
+              <th><i class="bi bi-circle-half"></i> Statut</th>
+              <th><i class="bi bi-play-circle"></i> Début</th>
+              <th><i class="bi bi-stop-circle"></i> Fin</th>
+              <th><i class="bi bi-people"></i> Profils</th>
+              <th><i class="bi bi-gift"></i> Offres gén.</th>
+              <th><i class="bi bi-plus-circle"></i> Nouvelles</th>
+              <th><i class="bi bi-dash-circle"></i> Désactivées</th>
+              <th><i class="bi bi-exclamation-circle"></i> Erreur</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let run of recommendationGenerationRuns">
+              <td><span class="code-tag">{{ run.runId }}</span></td>
+              <td>
+                <span class="status-badge"
+                  [class.success]="run.status === 'DONE'"
+                  [class.failed]="run.status === 'FAILED'"
+                  [class.running]="run.status === 'RUNNING'">
+                  <i class="bi"
+                    [ngClass]="{
+                      'bi-check-circle-fill': run.status === 'DONE',
+                      'bi-x-circle-fill': run.status === 'FAILED',
+                      'bi-hourglass-split': run.status === 'RUNNING'
+                    }"></i>
+                  {{ run.status }}
+                </span>
+              </td>
+              <td>{{ formatDate(run.startedAt) }}</td>
+              <td>{{ run.finishedAt ? formatDate(run.finishedAt!) : '—' }}</td>
+              <td>{{ run.nProfiles }}</td>
+              <td>{{ run.nOffersGen }}</td>
+              <td>{{ run.nOffersNew }}</td>
+              <td>{{ run.nOffersDeact }}</td>
+              <td style="color:#c62828; font-size:0.8rem">{{ run.errorMsg || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div><!-- /dashboard -->
+  </ng-container>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       ONGLETS MARKETING FEEDBACK
+       ════════════════════════════════════════════════════════════════ -->
+
+  <!-- KPI hero marketing (commun à tous les onglets marketing) -->
+  <div class="dashboard" *ngIf="activeTab !== 'model'">
+
+    <div class="kpi-row kpi-row-mf">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon-wrap"><i class="bi bi-send"></i></div>
+        <div>
+          <div class="kpi-label">Envoyées</div>
+          <div class="kpi-value">{{ totalSent }}</div>
+          <div class="kpi-hint">{{ uniqueClients }} clients touchés</div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-icon-wrap"><i class="bi bi-envelope-open"></i></div>
+        <div>
+          <div class="kpi-label">Ouvertes</div>
+          <div class="kpi-value">{{ totalOpened }}</div>
+          <div class="kpi-hint">Taux d'ouverture : {{ ratePct(openRate) }}</div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon-wrap"><i class="bi bi-check-circle"></i></div>
+        <div>
+          <div class="kpi-label">Acceptées</div>
+          <div class="kpi-value">{{ totalAccepted }}</div>
+          <div class="kpi-hint" [style.color]="rateColor(acceptRate)">
+            Taux d'acceptation : {{ ratePct(acceptRate) }}
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-red">
+        <div class="kpi-icon-wrap"><i class="bi bi-x-circle"></i></div>
+        <div>
+          <div class="kpi-label">Refusées</div>
+          <div class="kpi-value">{{ totalRejected }}</div>
+          <div class="kpi-hint">Vs {{ totalAccepted }} accepts</div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-orange">
+        <div class="kpi-icon-wrap"><i class="bi bi-lightning"></i></div>
+        <div>
+          <div class="kpi-label">Offres actives en base</div>
+          <div class="kpi-value">{{ activeApps }}</div>
+          <div class="kpi-hint">FEE_WAIVER / CASHBACK / DISCOUNT</div>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon-wrap"><i class="bi bi-arrow-repeat"></i></div>
+        <div>
+          <div class="kpi-label">Buffer FastAPI</div>
+          <div class="kpi-value">{{ bufferSizeFastApi }}</div>
+          <div class="kpi-hint">Cursor : {{ schedulerCursor | slice:0:16 }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions admin marketing -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title"><i class="bi bi-gear"></i> Actions admin</div>
+      </div>
+      <div class="admin-actions-row">
+        <button class="admin-action admin-action-push" (click)="pushFeedback()" [disabled]="pushingFeedback">
+          <i class="bi" [class.bi-cloud-arrow-up]="!pushingFeedback" [class.bi-hourglass-split]="pushingFeedback"></i>
+          <div>
+            <strong>Pousser le batch</strong>
+            <small>Envoie immédiatement les interactions au moteur FastAPI</small>
+          </div>
+        </button>
+
+        <button class="admin-action admin-action-retrain" (click)="retrain()" [disabled]="retraining">
+          <i class="bi" [class.bi-magic]="!retraining" [class.bi-hourglass-split]="retraining"></i>
+          <div>
+            <strong>Re-pondérer les offres</strong>
+            <small>Auto-apprentissage : ajuste les boosts selon les taux d'acceptation</small>
+          </div>
+        </button>
+
+        <button class="admin-action admin-action-reset" (click)="resetCursor()" [disabled]="resetting">
+          <i class="bi" [class.bi-skip-backward]="!resetting" [class.bi-hourglass-split]="resetting"></i>
+          <div>
+            <strong>Reset cursor</strong>
+            <small>Renvoie toutes les interactions depuis N jours</small>
+          </div>
+        </button>
+      </div>
+
+      <div *ngIf="lastRetrainResult?.details?.length" class="retrain-details">
+        <h3>Dernière re-pondération</h3>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Code offre</th><th>Acc.</th><th>Rej.</th><th>Boost avant</th><th>Boost après</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let d of lastRetrainResult.details">
+              <td><span class="code-tag">{{ d.offer_code }}</span></td>
+              <td>{{ d.accepted }}</td>
+              <td>{{ d.rejected }}</td>
+              <td>{{ d.old_boost }}</td>
+              <td><strong>{{ d.new_boost }}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── ONGLET : OVERVIEW ─────────────────────────────────────── -->
+    <ng-container *ngIf="activeTab === 'overview'">
+      <div class="overview-grid">
+
+        <!-- Répartition par statut -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title"><i class="bi bi-pie-chart"></i> Répartition par statut</div>
+          </div>
+          <div class="status-bars">
+            <div class="status-row">
+              <span class="status-dot" [style.background]="statusColor('SENT')"></span>
+              <span class="status-label">Envoyées (en attente)</span>
+              <span class="status-val">{{ totalSent }}</span>
+            </div>
+            <div class="status-row">
+              <span class="status-dot" [style.background]="statusColor('OPENED')"></span>
+              <span class="status-label">Ouvertes</span>
+              <span class="status-val">{{ totalOpened }}</span>
+            </div>
+            <div class="status-row">
+              <span class="status-dot" [style.background]="statusColor('ACCEPTED')"></span>
+              <span class="status-label">Acceptées</span>
+              <span class="status-val">{{ totalAccepted }}</span>
+            </div>
+            <div class="status-row">
+              <span class="status-dot" [style.background]="statusColor('REJECTED')"></span>
+              <span class="status-label">Refusées</span>
+              <span class="status-val">{{ totalRejected }}</span>
+            </div>
+            <div class="status-row">
+              <span class="status-dot" [style.background]="statusColor('PENDING')"></span>
+              <span class="status-label">En préparation</span>
+              <span class="status-val">{{ totalPending }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Funnel -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title"><i class="bi bi-filter"></i> Funnel de conversion</div>
+          </div>
+          <div class="funnel">
+            <div class="funnel-row">
+              <span class="funnel-label">📤 Envoyées</span>
+              <div class="funnel-bar" [style.width.%]="100">
+                <span>{{ totalSent + totalOpened + totalAccepted + totalRejected }}</span>
+              </div>
+            </div>
+            <div class="funnel-row">
+              <span class="funnel-label">👁️ Ouvertes</span>
+              <div class="funnel-bar funnel-purple"
+                   [style.width.%]="(totalSent + totalOpened + totalAccepted + totalRejected) > 0
+                     ? ((totalOpened + totalAccepted + totalRejected) / (totalSent + totalOpened + totalAccepted + totalRejected)) * 100
+                     : 0">
+                <span>{{ totalOpened + totalAccepted + totalRejected }}</span>
+              </div>
+            </div>
+            <div class="funnel-row">
+              <span class="funnel-label">✅ Acceptées</span>
+              <div class="funnel-bar funnel-green"
+                   [style.width.%]="(totalSent + totalOpened + totalAccepted + totalRejected) > 0
+                     ? (totalAccepted / (totalSent + totalOpened + totalAccepted + totalRejected)) * 100
+                     : 0">
+                <span>{{ totalAccepted }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Dernières interactions -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title"><i class="bi bi-clock-history"></i> Dernières interactions</div>
+        </div>
+        <div *ngIf="interactions.length === 0" class="empty-card">
+          <i class="bi bi-inbox"></i>
+          <span>Aucune interaction enregistrée pour le moment.</span>
+        </div>
+        <table *ngIf="interactions.length > 0" class="data-table">
+          <thead>
+            <tr><th>Quand</th><th>Client</th><th>Offre</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let i of interactions.slice(0, 8)">
+              <td><span class="mono-cell">{{ fmtDate(i.recorded_at) }}</span></td>
+              <td><span class="code-tag">{{ short(i.client_id, 10) }}</span></td>
+              <td>
+                <span class="code-tag">{{ i.offer_code }}</span>
+                <small *ngIf="i.offer_title" class="cell-subtitle">{{ i.offer_title }}</small>
+              </td>
+              <td>
+                <span class="pill" [style.background]="actionColor(i.action) + '22'"
+                      [style.color]="actionColor(i.action)">
+                  {{ i.action }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+
+    <!-- ── ONGLET : OFFERS STATS ─────────────────────────────────── -->
+    <ng-container *ngIf="activeTab === 'offers'">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title"><i class="bi bi-tag"></i> Performance par offre</div>
+          <span class="section-count">{{ offerStats.length }} offres</span>
+        </div>
+
+        <div *ngIf="loadingOffers" class="empty-card"><i class="bi bi-hourglass-split"></i><span>Chargement…</span></div>
+        <div *ngIf="!loadingOffers && offerStats.length === 0" class="empty-card">
+          <i class="bi bi-inbox"></i>
+          <span>Aucune offre n'a encore été envoyée. Approuve et envoie une recommandation depuis la page Recommandations.</span>
+        </div>
+
+        <table *ngIf="offerStats.length > 0" class="data-table">
+          <thead>
+            <tr>
+              <th>Offre</th><th>Envoyée</th><th>Ouverte</th><th>Acceptée</th>
+              <th>Refusée</th><th>Taux accept</th><th>Boost</th><th>Répartition</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let o of offerStats">
+              <td>
+                <span class="code-tag">{{ o.offer_code }}</span>
+                <small *ngIf="o.offer_title" class="cell-subtitle">{{ o.offer_title }}</small>
+              </td>
+              <td><strong>{{ o.total }}</strong></td>
+              <td>{{ o.opened }}</td>
+              <td><span class="metric-val good">{{ o.accepted }}</span></td>
+              <td><span class="metric-val poor">{{ o.rejected }}</span></td>
+              <td>
+                <span class="pill" [style.background]="rateColor(o.accept_rate) + '22'"
+                      [style.color]="rateColor(o.accept_rate)">
+                  {{ ratePct(o.accept_rate) }}
+                </span>
+              </td>
+              <td><span class="code-tag">{{ o.boost ?? '—' }}</span></td>
+              <td style="min-width:180px">
+                <div class="stacked-bar">
+                  <div class="stacked stacked-accept" [style.width.%]="acceptBarPct(o)" [title]="o.accepted + ' acceptées'"></div>
+                  <div class="stacked stacked-reject" [style.width.%]="rejectBarPct(o)" [title]="o.rejected + ' refusées'"></div>
+                  <div class="stacked stacked-open" [style.width.%]="openedBarPct(o)" [title]="o.opened + ' ouvertes'"></div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+
+    <!-- ── ONGLET : PROFILES STATS ───────────────────────────────── -->
+    <ng-container *ngIf="activeTab === 'profiles'">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title"><i class="bi bi-people"></i> Performance par profil (cluster ML)</div>
+          <span class="section-count">{{ profileStats.length }} profils</span>
+        </div>
+
+        <div *ngIf="loadingProfiles" class="empty-card"><i class="bi bi-hourglass-split"></i><span>Chargement…</span></div>
+        <div *ngIf="!loadingProfiles && profileStats.length === 0" class="empty-card">
+          <i class="bi bi-inbox"></i>
+          <span>Aucun profil n'a encore reçu d'offre.</span>
+        </div>
+
+        <table *ngIf="profileStats.length > 0" class="data-table">
+          <thead>
+            <tr>
+              <th>Cluster</th><th>Profil</th><th>Total envoyé</th><th>Clients uniques</th>
+              <th>Ouvertes</th><th>Acceptées</th><th>Refusées</th><th>Taux accept</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of profileStats">
+              <td><span class="cluster-badge">#{{ p.cluster_id }}</span></td>
+              <td>
+                <div class="profile-cell">
+                  <span class="profile-dot"></span>
+                  <span class="profile-name">{{ p.profile_name }}</span>
+                </div>
+              </td>
+              <td>{{ p.total }}</td>
+              <td>{{ p.unique_clients }}</td>
+              <td>{{ p.opened }}</td>
+              <td><span class="metric-val good">{{ p.accepted }}</span></td>
+              <td><span class="metric-val poor">{{ p.rejected }}</span></td>
+              <td>
+                <span class="pill" [style.background]="rateColor(p.accept_rate) + '22'"
+                      [style.color]="rateColor(p.accept_rate)">
+                  {{ ratePct(p.accept_rate) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+
+    <!-- ── ONGLET : INTERACTIONS ─────────────────────────────────── -->
+    <ng-container *ngIf="activeTab === 'interactions'">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title"><i class="bi bi-activity"></i> Toutes les interactions ({{ interactions.length }})</div>
+          <div class="filters">
+            <select [(ngModel)]="filterAction" (change)="applyFilters()" class="filter-select">
+              <option value="">Toutes actions</option>
+              <option value="viewed">Vues</option>
+              <option value="clicked">Cliquées</option>
+              <option value="accepted">Acceptées</option>
+              <option value="rejected">Refusées</option>
+            </select>
+            <input type="text" [(ngModel)]="filterOfferCode" placeholder="Code offre..." class="filter-input">
+            <button (click)="applyFilters()" class="btn-filter"><i class="bi bi-funnel"></i></button>
+            <button (click)="clearFilters()" class="btn-filter-ghost"><i class="bi bi-x"></i></button>
+          </div>
+        </div>
+
+        <div *ngIf="loadingInter" class="empty-card"><i class="bi bi-hourglass-split"></i><span>Chargement…</span></div>
+        <div *ngIf="!loadingInter && interactions.length === 0" class="empty-card">
+          <i class="bi bi-inbox"></i>
+          <span>Aucune interaction trouvée pour ces filtres.</span>
+        </div>
+
+        <table *ngIf="interactions.length > 0" class="data-table">
+          <thead>
+            <tr><th>ID</th><th>Quand</th><th>Client</th><th>Offre</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let i of interactions">
+              <td><span class="id-cell">#{{ i.id }}</span></td>
+              <td><span class="mono-cell">{{ fmtDate(i.recorded_at) }}</span></td>
+              <td><span class="code-tag">{{ short(i.client_id, 12) }}</span></td>
+              <td>
+                <span class="code-tag">{{ i.offer_code }}</span>
+                <small *ngIf="i.offer_title" class="cell-subtitle">{{ i.offer_title }}</small>
+              </td>
+              <td>
+                <span class="pill" [style.background]="actionColor(i.action) + '22'" [style.color]="actionColor(i.action)">
+                  <i class="bi"
+                     [class.bi-eye]="i.action === 'viewed'"
+                     [class.bi-hand-index]="i.action === 'clicked'"
+                     [class.bi-check]="i.action === 'accepted'"
+                     [class.bi-x]="i.action === 'rejected'"></i>
+                  {{ i.action }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+
+    <!-- ── ONGLET : RECOS ENVOYÉES ───────────────────────────────── -->
+    <ng-container *ngIf="activeTab === 'recos'">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title"><i class="bi bi-megaphone"></i> Recommandations envoyées ({{ recos.length }})</div>
+          <div class="filters">
+            <select [(ngModel)]="filterStatus" (change)="applyFilters()" class="filter-select">
+              <option value="">Tous statuts</option>
+              <option value="SENT">Envoyée</option>
+              <option value="OPENED">Ouverte</option>
+              <option value="ACCEPTED">Acceptée</option>
+              <option value="REJECTED">Refusée</option>
+              <option value="PENDING">En attente</option>
+            </select>
+            <input type="text" [(ngModel)]="filterOfferCode" placeholder="Code offre..." class="filter-input">
+            <button (click)="applyFilters()" class="btn-filter"><i class="bi bi-funnel"></i></button>
+            <button (click)="clearFilters()" class="btn-filter-ghost"><i class="bi bi-x"></i></button>
+          </div>
+        </div>
+
+        <div *ngIf="loadingRecos" class="empty-card"><i class="bi bi-hourglass-split"></i><span>Chargement…</span></div>
+        <div *ngIf="!loadingRecos && recos.length === 0" class="empty-card">
+          <i class="bi bi-inbox"></i>
+          <span>Aucune recommandation envoyée pour ces filtres.</span>
+        </div>
+
+        <table *ngIf="recos.length > 0" class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Client</th><th>Cluster</th><th>Offre</th>
+              <th>Statut</th><th>Envoyée</th><th>Ouverte</th><th>Réponse</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of recos">
+              <td><span class="id-cell">#{{ r.id }}</span></td>
+              <td><span class="code-tag">{{ short(r.client_id, 12) }}</span></td>
+              <td>
+                <span *ngIf="r.cluster_id !== null && r.cluster_id !== undefined" class="cluster-badge">#{{ r.cluster_id }}</span>
+                <span *ngIf="r.cluster_id === null || r.cluster_id === undefined">—</span>
+              </td>
+              <td>
+                <span class="code-tag">{{ r.offer_code }}</span>
+                <small *ngIf="r.offer_title" class="cell-subtitle">{{ r.offer_title }}</small>
+              </td>
+              <td>
+                <span class="pill" [style.background]="statusColor(r.status) + '22'" [style.color]="statusColor(r.status)">
+                  {{ r.status }}
+                </span>
+              </td>
+              <td><span class="mono-cell">{{ fmtDate(r.sent_at) }}</span></td>
+              <td><span class="mono-cell">{{ fmtDate(r.opened_at) }}</span></td>
+              <td>
+                <span *ngIf="r.accepted_at" class="mono-cell" style="color:#2e7d32">✓ {{ fmtDate(r.accepted_at) }}</span>
+                <span *ngIf="r.rejected_at" class="mono-cell" style="color:#c62828">✗ {{ fmtDate(r.rejected_at) }}</span>
+                <span *ngIf="!r.accepted_at && !r.rejected_at" class="muted">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+
+    <!-- ── ONGLET : APPLICATIONS ACTIVES ─────────────────────────── -->
+    <ng-container *ngIf="activeTab === 'applications'">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title"><i class="bi bi-lightning"></i> Offres réellement appliquées en base ({{ aoa.length }})</div>
+          <span class="section-count">{{ aoa.length }} effets</span>
+        </div>
+        <p class="subtitle-block">
+          Ces offres sont <strong>activement appliquées</strong> sur le compte des clients
+          et impactent leurs transactions (exonération de frais, cashback, etc.).
+        </p>
+
+        <div *ngIf="loadingAoa" class="empty-card"><i class="bi bi-hourglass-split"></i><span>Chargement…</span></div>
+        <div *ngIf="!loadingAoa && aoa.length === 0" class="empty-card">
+          <i class="bi bi-inbox"></i>
+          <span>Aucune offre actuellement appliquée. Quand un client accepte une offre, elle apparaît ici.</span>
+        </div>
+
+        <table *ngIf="aoa.length > 0" class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Client</th><th>Offre</th><th>Effet</th>
+              <th>Statut</th><th>Début</th><th>Fin</th><th>Cumulé</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of aoa">
+              <td><span class="id-cell">#{{ a.id }}</span></td>
+              <td><span class="code-tag">{{ short(a.client_id, 12) }}</span></td>
+              <td><span class="code-tag">{{ a.offer_code }}</span></td>
+              <td>
+                <span class="pill" [style.background]="effectColor(a.effect_type) + '22'" [style.color]="effectColor(a.effect_type)">
+                  {{ a.effect_type }}
+                </span>
+              </td>
+              <td>
+                <span class="pill"
+                      [style.background]="a.status === 'ACTIVE' ? '#2e7d3222' : '#94a3b822'"
+                      [style.color]="a.status === 'ACTIVE' ? '#2e7d32' : '#6b7fa3'">
+                  {{ a.status }}
+                </span>
+              </td>
+              <td><span class="mono-cell">{{ fmtDate(a.starts_at) }}</span></td>
+              <td><span class="mono-cell">{{ fmtDate(a.ends_at) }}</span></td>
+              <td><span class="code-tag">{{ a.applied_amount_total || '0' }} TND</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+
+  </div><!-- /dashboard marketing -->
+
+  <!-- ── Modale historique (partagée) ─────────────────────────────── -->
+  <div class="modal-overlay" *ngIf="historyModalOpen" (click)="closeHistory()">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h4>
+          <i class="bi bi-clock-history"></i>
+          Historique des métriques — {{ selectedProfile }}
+        </h4>
+        <button class="modal-close" (click)="closeHistory()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <div *ngIf="historyMetrics.length">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th><i class="bi bi-calendar3"></i> Date</th>
+              <th><i class="bi bi-bullseye"></i> Précision</th>
+              <th><i class="bi bi-funnel"></i> Rappel</th>
+              <th><i class="bi bi-trophy"></i> F1</th>
+              <th><i class="bi bi-hand-thumbs-up"></i> Acceptation</th>
+              <th><i class="bi bi-star"></i> Score moy.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let m of historyMetrics">
+              <td>{{ formatDate(m.computedAt) }}</td>
+              <td>{{ m.precisionScore | number:'1.2-2' }}</td>
+              <td>{{ m.recallScore | number:'1.2-2' }}</td>
+              <td>{{ m.f1Score | number:'1.2-2' }}</td>
+              <td>{{ m.acceptanceRate | number:'1.2-2' }}%</td>
+              <td>{{ m.avgScore | number:'1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="empty-card" *ngIf="!historyMetrics.length">
+        <i class="bi bi-clock-history"></i>
+        <span>Aucun historique disponible pour ce profil.</span>
+      </div>
+    </div>
+  </div>
+
+</div>

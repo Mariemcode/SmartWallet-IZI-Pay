@@ -1,0 +1,82 @@
+# ════════════════════════════════════════════════════════════════════
+#  SmartWallet IZI Pay — .gitignore (monorepo : mobile + backend + IA + admin)
+#  À placer à la RACINE du dépôt.
+# ════════════════════════════════════════════════════════════════════
+
+# ───────── SECRETS (NE JAMAIS COMMITTER) ─────────
+.env
+*.env
+!*.env.example
+**/serviceAccountKey.json
+**/*secret*.json
+**/*secret*.yaml
+**/*secret*.yml
+**/application-*.yml
+**/application-*.yaml
+*.pem
+*.key
+*.keystore
+*.jks
+
+# ───────── Python / FastAPI (intelligence/) ─────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Artefacts ML lourds (régénérés par le retrain) — exclus du dépôt
+intelligence/outputs/
+intelligence/outputs_v9/
+intelligence/outputs_reco_v5/
+intelligence/feedback_logs/
+intelligence/retrain_logs/
+**/figures/
+*.log
+# Modèles : trop lourds pour Git. Si tu veux les versionner, utilise Git LFS.
+# *.pkl
+
+# Datasets volumineux
+*.csv
+*.parquet
+!**/sample_*.csv          # garde éventuellement un petit échantillon
+
+# ───────── Java / Spring Boot (backend/) ─────────
+target/
+*.class
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+*.war
+*.jar
+!**/maven-wrapper.jar
+
+# ───────── Node / Angular (admin/) ─────────
+node_modules/
+dist/
+.angular/
+*.tsbuildinfo
+npm-debug.log*
+
+# ───────── Flutter / Dart (mobile/) ─────────
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+*.iml
+ios/Pods/
+ios/.symlinks/
+android/.gradle/
+android/app/google-services.json    # secret Firebase
+
+# ───────── IDE / OS ─────────
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

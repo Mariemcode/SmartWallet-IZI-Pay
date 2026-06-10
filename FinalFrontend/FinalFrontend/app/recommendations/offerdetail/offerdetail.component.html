@@ -1,0 +1,231 @@
+<div class="detail-page" *ngIf="!loading && offer; else loadingSpinner">
+
+  <!-- ── Header ── -->
+  <div class="page-header">
+    <div class="header-left">
+      <span class="header-tag">
+        <i class="bi bi-tag-fill"></i> Offre
+      </span>
+      <h1>Détail de l'<span class="accent">offre</span></h1>
+      <p class="subtitle">
+        <i class="bi bi-hash"></i>
+        <span class="offer-code-tag">{{ offer.offerCode }}</span>
+      </p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-back" (click)="goBack()">
+        <i class="bi bi-arrow-left"></i> Retour
+      </button>
+      <button
+        class="btn-status"
+        [class.btn-activate]="offer.status === 'INACTIVE'"
+        [class.btn-deactivate]="offer.status === 'ACTIVE'"
+        (click)="toggleStatus()">
+        <i class="bi" [class.bi-toggle-on]="offer.status === 'ACTIVE'" [class.bi-toggle-off]="offer.status === 'INACTIVE'"></i>
+        {{ offer.status === 'ACTIVE' ? 'Désactiver' : 'Activer' }}
+      </button>
+      <button class="btn-delete" (click)="deleteOffer()">
+        <i class="bi bi-trash3"></i> Supprimer
+      </button>
+      <button class="btn-edit" (click)="goToEdit()">
+        <i class="bi bi-pencil-square"></i> Modifier
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Main Content ── -->
+  <div class="detail-container">
+
+    <!-- Informations générales -->
+    <div class="info-section">
+      <div class="section-legend">
+        <i class="bi bi-info-circle-fill"></i>
+        Informations générales
+      </div>
+      <div class="section-body">
+        <div class="info-grid">
+          <div class="info-row">
+            <span class="label">Code</span>
+            <span class="value mono">{{ offer.offerCode }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Titre</span>
+            <span class="value">{{ offer.title }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Type</span>
+            <span class="chip">{{ offer.type }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Fournisseur</span>
+            <span class="value">{{ offer.providerName || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Catégorie</span>
+            <span class="value">{{ offer.category || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Statut</span>
+            <span class="badge"
+              [class.active]="offer.status === 'ACTIVE'"
+              [class.inactive]="offer.status === 'INACTIVE'">
+              <i class="bi" [class.bi-check-circle-fill]="offer.status === 'ACTIVE'" [class.bi-x-circle-fill]="offer.status === 'INACTIVE'"></i>
+              {{ offer.status }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="label">Méthode génération</span>
+            <span class="value">{{ offer.generationMethod || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Créé le</span>
+            <span class="value">{{ offer.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Modifié le</span>
+            <span class="value">{{ offer.updatedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conditions financières -->
+    <div class="info-section">
+      <div class="section-legend">
+        <i class="bi bi-cash-coin"></i>
+        Conditions financières
+      </div>
+      <div class="section-body">
+        <div class="info-grid three-cols">
+          <div class="info-row">
+            <span class="label">Cashback</span>
+            <span class="value highlight">{{ offer.cashbackPct }} %</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Remise</span>
+            <span class="value highlight">{{ offer.discountPct }} %</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Montant minimum</span>
+            <span class="value highlight">{{ offer.minAmount }} DT</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Boost</span>
+            <span class="value highlight">× {{ offer.boost }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ciblage -->
+    <div class="info-section">
+      <div class="section-legend">
+        <i class="bi bi-people-fill"></i>
+        Ciblage
+      </div>
+      <div class="section-body">
+        <div class="info-row">
+          <span class="label">Profils cibles</span>
+          <div class="profile-list">
+            <span class="profile-badge" *ngFor="let p of offer.targetProfiles">{{ p }}</span>
+            <span class="empty-value" *ngIf="!offer.targetProfiles?.length">Aucun profil défini</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div class="info-section">
+      <div class="section-legend">
+        <i class="bi bi-text-paragraph"></i>
+        Description
+      </div>
+      <div class="section-body">
+        <p class="description-text">{{ offer.description || 'Aucune description.' }}</p>
+      </div>
+    </div>
+
+    <!-- ── Recommandations associées ── -->
+    <div class="recommendations-section">
+      <div class="recos-header">
+        <div class="recos-title">
+          <i class="bi bi-clipboard2-check-fill"></i>
+          Recommandations associées
+          <span class="count-badge">{{ recommendations.length }}</span>
+        </div>
+        <button class="btn-create-reco" (click)="createRecommendation()">
+          <i class="bi bi-plus-lg"></i> Ajouter une recommandation
+        </button>
+      </div>
+
+      <div *ngIf="loadingRecos" class="loading-small">
+        Chargement des recommandations...
+      </div>
+
+      <div *ngIf="!loadingRecos && recommendations.length === 0" class="empty-state">
+        <i class="bi bi-inbox"></i>
+        Aucune recommandation pour cette offre.
+      </div>
+
+      <div *ngIf="!loadingRecos && recommendations.length > 0" class="table-responsive">
+        <table class="recos-table">
+          <thead>
+            <tr>
+              <th><i class="bi bi-person"></i> Profil</th>
+              <th><i class="bi bi-star"></i> Score global</th>
+              <th><i class="bi bi-person-badge"></i> Score Profil</th>
+              <th><i class="bi bi-building"></i> Score Provider</th>
+              <th><i class="bi bi-tag"></i> Type</th>
+              <th><i class="bi bi-circle-fill"></i> Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let rec of recommendations">
+              <td>{{ rec.profileName }}</td>
+              <td class="score-cell">{{ rec.score | number:'1.2-2' }}</td>
+              <td class="score-cell">{{ rec.scoreProfile | number:'1.2-2' }}</td>
+              <td class="score-cell">{{ rec.scoreProvider | number:'1.2-2' }}</td>
+              <td><span class="type-tag">{{ rec.recommendationType }}</span></td>
+              <td>
+                <span class="status-badge"
+                  [class.approved]="rec.status === 'APPROVED'"
+                  [class.rejected]="rec.status === 'REJECTED'"
+                  [class.pending]="rec.status === 'PENDING'">
+                  <i class="bi"
+                    [class.bi-check-circle-fill]="rec.status === 'APPROVED'"
+                    [class.bi-x-circle-fill]="rec.status === 'REJECTED'"
+                    [class.bi-clock-fill]="rec.status === 'PENDING'">
+                  </i>
+                  {{ rec.status }}
+                </span>
+              </td>
+              <td class="action-buttons">
+                <button class="btn-details" (click)="viewRecommendationDetails(rec.id)">
+                  <i class="bi bi-eye"></i> Détails
+                </button>
+                <ng-container *ngIf="rec.status === 'PENDING'">
+                  <button class="btn-approve" (click)="updateRecommendationStatus(rec, 'APPROVED')">
+                    <i class="bi bi-check-lg"></i> Approuver
+                  </button>
+                  <button class="btn-reject" (click)="updateRecommendationStatus(rec, 'REJECTED')">
+                    <i class="bi bi-x-lg"></i> Rejeter
+                  </button>
+                </ng-container>
+                <span *ngIf="rec.status !== 'PENDING'" style="color:#d0dff0;">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<ng-template #loadingSpinner>
+  <div class="loading-overlay">
+    <div class="spinner"></div>
+    <span>Chargement de l'offre...</span>
+  </div>
+</ng-template>

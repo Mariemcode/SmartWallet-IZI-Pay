@@ -1,0 +1,279 @@
+<div class="offers-page">
+
+  <!-- ── Header ─────────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+      <button class="btn-back" (click)="goBack()">
+        <i class="bi bi-arrow-left"></i> Retour
+      </button>
+      <div class="header-info">
+        <span class="header-tag">DÉTAIL</span>
+        <h1>Recommandation <span class="accent">#{{ recommendation?.id }}</span></h1>
+        <p class="subtitle" *ngIf="recommendation">Pour le profil « {{ recommendation.profileName }} »</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-regenerate"
+              (click)="notifyClients()"
+              [disabled]="notifying || recommendation?.status !== 'APPROVED'"
+              [attr.title]="recommendation?.status !== 'APPROVED' ? 'Seulement pour les recommandations approuvées' : 'Envoyer une notification aux clients du profil'">
+        <i class="bi bi-megaphone"></i>
+        <span *ngIf="notifying">Envoi...</span>
+        <span *ngIf="!notifying">Notifier le profil</span>
+      </button>
+      <button class="btn-add" (click)="viewOfferDetails()">
+        <i class="bi bi-tag"></i> Voir l'offre
+      </button>
+      <button class="btn-add" style="background:#6a1b9a;" (click)="viewProfileDetails()">
+        <i class="bi bi-person-badge"></i> Voir le profil
+      </button>
+      <button class="btn-regenerate" (click)="editRecommendation()">
+        <i class="bi bi-pencil"></i> Modifier
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Loader ─────────────────────────────────────────────────────── -->
+  <div class="loader-wrap" *ngIf="loading">
+    <div class="loader-ring"></div>
+    <span>Chargement des données…</span>
+  </div>
+
+  <!-- ── Contenu principal ─────────────────────────────────────────── -->
+  <div class="dashboard" *ngIf="!loading && recommendation">
+
+    <!-- ── Carte : infos recommandation ────────────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-info-circle"></i> Informations de la recommandation
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="details-grid">
+          <div class="detail-item">
+            <span class="detail-label">ID</span>
+            <span class="detail-value">{{ recommendation.id }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Profil</span>
+            <span class="detail-value">{{ recommendation.profileName }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Cluster</span>
+            <span class="detail-value">{{ recommendation.clusterId }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Score global</span>
+            <span class="detail-value highlight">{{ recommendation.score | number:'1.3-3' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Score profil</span>
+            <span class="detail-value">{{ recommendation.scoreProfile }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Score fournisseur</span>
+            <span class="detail-value">{{ recommendation.scoreProvider }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Score churn boost</span>
+            <span class="detail-value">{{ recommendation.scoreChurnBoost }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Ciblée</span>
+            <span class="detail-value">{{ recommendation.isTargeted ? 'Oui' : 'Non' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Type reco</span>
+            <span class="detail-value">{{ recommendation.recommendationType }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Statut</span>
+            <span class="status-badge"
+                  [class.status-active]="recommendation.status === 'APPROVED'"
+                  [class.status-inactive]="recommendation.status === 'REJECTED'"
+                  [style.background]="recommendation.status === 'PENDING' ? '#fff3e0' : ''"
+                  [style.color]="recommendation.status === 'PENDING' ? '#e65100' : ''">
+              <i class="bi" [class.bi-check-circle-fill]="recommendation.status === 'APPROVED'"
+                 [class.bi-x-circle-fill]="recommendation.status === 'REJECTED'"
+                 [class.bi-hourglass-split]="recommendation.status === 'PENDING'"></i>
+              {{ recommendation.status }}
+            </span>
+          </div>
+          <div class="detail-item full-width">
+            <span class="detail-label">Note admin</span>
+            <span class="detail-value">{{ recommendation.adminNote || '-' }}</span>
+          </div>
+          <div class="detail-item full-width">
+            <span class="detail-label">Description</span>
+            <div class="description-text">{{ recommendation.description || 'Aucune description' }}</div>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Générée le</span>
+            <span class="detail-value">{{ recommendation.generatedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+          <div class="detail-item" *ngIf="recommendation.approvedAt">
+            <span class="detail-label">Approuvée le</span>
+            <span class="detail-value">{{ recommendation.approvedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+          <div class="detail-item" *ngIf="recommendation.rejectedAt">
+            <span class="detail-label">Rejetée le</span>
+            <span class="detail-value">{{ recommendation.rejectedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+        </div>
+
+        <!-- Actions PENDING -->
+        <div class="form-actions" *ngIf="recommendation.status === 'PENDING'">
+          <button class="btn-submit" style="background:#2e7d32;" (click)="approve()">
+            <i class="bi bi-check-lg"></i> Approuver
+          </button>
+          <button class="btn-cancel" style="background:#ffebee; color:#c62828; border-color:#ffcdd2;" (click)="reject()">
+            <i class="bi bi-x-lg"></i> Rejeter
+          </button>
+        </div>
+        <div class="form-actions" *ngIf="recommendation.status !== 'PENDING'">
+          <p class="info-text">Cette recommandation a déjà été traitée.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Carte : détails de l'offre associée ─────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-tag"></i> Détails de l'offre associée
+        </div>
+      </div>
+      <div class="section-body">
+        <div *ngIf="offerDetails; else loadingOffer">
+          <div class="details-grid">
+            <div class="detail-item">
+              <span class="detail-label">Code offre</span>
+              <span class="detail-value code-tag"><i class="bi bi-upc"></i> {{ offerDetails.offerCode }}</span>
+            </div>
+            <div class="detail-item full-width">
+              <span class="detail-label">Titre</span>
+              <span class="detail-value">{{ offerDetails.title }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Type</span>
+              <span class="detail-value">{{ offerDetails.type }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Fournisseur</span>
+              <span class="detail-value">{{ offerDetails.providerName || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Catégorie</span>
+              <span class="detail-value">{{ offerDetails.category || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Cashback</span>
+              <span class="detail-value pct-badge pct-cashback">{{ offerDetails.cashbackPct }}%</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Remise</span>
+              <span class="detail-value pct-badge pct-discount">{{ offerDetails.discountPct }}%</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Montant minimum</span>
+              <span class="detail-value">{{ offerDetails.minAmount }} TND</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Boost</span>
+              <span class="detail-value">{{ offerDetails.boost }}</span>
+            </div>
+            <div class="detail-item full-width">
+              <span class="detail-label">Profils cibles</span>
+              <div class="profile-badges">
+                <span *ngFor="let p of offerDetails.targetProfiles" class="profile-badge">{{ p }}</span>
+                <span *ngIf="!offerDetails.targetProfiles?.length" class="profile-badge profile-badge-all">Tous</span>
+              </div>
+            </div>
+            <div class="detail-item full-width">
+              <span class="detail-label">Description offre</span>
+              <div class="description-text">{{ offerDetails.description || '-' }}</div>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Statut offre</span>
+              <span class="status-badge"
+                    [class.status-active]="offerDetails.status === 'ACTIVE'"
+                    [class.status-inactive]="offerDetails.status === 'INACTIVE'">
+                <i class="bi" [class.bi-check-circle-fill]="offerDetails.status === 'ACTIVE'"
+                   [class.bi-x-circle-fill]="offerDetails.status === 'INACTIVE'"></i>
+                {{ offerDetails.status }}
+              </span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Génération</span>
+              <span class="detail-value">{{ offerDetails.generationMethod || '-' }} (run {{ offerDetails.generationRun || '-' }})</span>
+            </div>
+          </div>
+        </div>
+        <ng-template #loadingOffer>
+          <div class="info-text">Chargement des détails de l'offre...</div>
+        </ng-template>
+      </div>
+    </div>
+
+    <!-- ── Carte : clients du profil ───────────────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-people"></i> Clients du profil « {{ recommendation.profileName }} »
+          <span class="section-count">{{ clientsTotalElements }}</span>
+        </div>
+        <div class="page-size-selector">
+          <label class="filter-label">Afficher :</label>
+          <select class="filter-select filter-select-sm" (change)="onClientsPageSizeChange($any($event.target).value)">
+            <option *ngFor="let size of pageSizes" [value]="size" [selected]="size === clientsPageSize">{{ size }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="section-body" *ngIf="!clientsLoading && clients.length === 0">
+        <div class="empty-state">Aucun client trouvé pour ce profil.</div>
+      </div>
+      <div *ngIf="!clientsLoading && clients.length > 0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th><i class="bi bi-person"></i> Prénom</th>
+              <th><i class="bi bi-person-badge"></i> Nom</th>
+              <th><i class="bi bi-star-fill"></i> Score confiance</th>
+              <th><i class="bi bi-graph-down"></i> Score churn (30j)</th>
+              <th><i class="bi bi-bar-chart"></i> Score RFM</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of clients">
+              <td>{{ c.firstName }}</td>
+              <td>{{ c.lastName }}</td>
+              <td><span class="pct-badge" [class.pct-cashback]="c.confidenceScore >= 0.7">{{ c.confidenceScore | number:'1.2-2' }}</span></td>
+              <td><span class="pct-badge" [class.status-inactive]="c.churnScore30j > 0.5">{{ c.churnScore30j | number:'1.2-2' }}</span></td>
+              <td>{{ c.rfmScore | number:'1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="pagination" *ngIf="clientsTotalElements > clientsPageSize">
+          <button class="page-btn" [disabled]="clientsCurrentPage === 0" (click)="onClientsPageChange(clientsCurrentPage - 1)">
+            <i class="bi bi-chevron-left"></i> Précédent
+          </button>
+          <span class="page-info">Page {{ clientsCurrentPage + 1 }} / {{ clientsTotalPages }}</span>
+          <button class="page-btn" [disabled]="clientsCurrentPage >= clientsTotalPages - 1" (click)="onClientsPageChange(clientsCurrentPage + 1)">
+            Suivant <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      <div *ngIf="clientsLoading" class="loader-wrap" style="padding: 2rem;">
+        <div class="loader-ring"></div>
+        <span>Chargement des clients…</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div *ngIf="!loading && !recommendation" class="empty-state">
+    <i class="bi bi-exclamation-triangle"></i>
+    <span>Recommandation introuvable</span>
+  </div>
+</div>

@@ -1,0 +1,57 @@
+<footer class="app-footer">
+
+    <div class="footer-inner">
+
+        <!-- Gauche — Brand -->
+        <div class="footer-brand">
+            <div class="footer-logo">
+                <i class="bi bi-wallet2"></i>
+            </div>
+            <div class="footer-brand-text">
+                <span class="footer-brand-name">AdminWallet</span>
+                <span class="footer-brand-sub">Plateforme de gestion sécurisée</span>
+            </div>
+        </div>
+
+        <!-- Centre — Liens -->
+        <div class="footer-links">
+            <a class="footer-link" (click)="go('/layout/dashboard')">
+                <i class="bi bi-list"></i>
+                Dashboard
+            </a>
+            <a class="footer-link" (click)="go('/layout/client/clients')">
+                <i class="bi bi-people"></i> Clients
+            </a>
+            <a class="footer-link" (click)="go('/layout/analyse/global')">
+                <i class="bi bi-graph-up"></i> Utilisation
+            </a>
+            <a class="footer-link" (click)="go('/layout/provider/providers')">
+                <i class="bi bi-building"></i> Fournisseurs
+            </a>
+
+        </div>
+
+        <!-- Droite — Infos -->
+        <div class="footer-info">
+            <div class="footer-status">
+                <span class="status-dot"></span>
+                <span>Système opérationnel</span>
+            </div>
+            <div class="footer-time">
+                <i class="bi bi-clock"></i>
+                {{ currentTime }}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bas — Copyright -->
+    <div class="footer-bottom">
+        <span>© {{ currentYear }} AdminPanel — Tous droits réservés</span>
+        <span class="footer-sep">·</span>
+        <span><i class="bi bi-shield-check"></i> Accès administrateur sécurisé</span>
+        <span class="footer-sep">·</span>
+        <span>v1.0.0</span>
+    </div>
+
+</footer>

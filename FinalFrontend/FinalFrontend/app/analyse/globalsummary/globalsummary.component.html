@@ -1,0 +1,234 @@
+<div class="analysis-page">
+
+  <!-- ── En-tête ─────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+      <span class="header-tag">VUE GLOBALE</span>
+      <h1>Répartition Dépenses <span class="accent">/</span> Revenus</h1>
+      <p class="subtitle">Analyse de l'utilisation de l'application par les clients</p>
+    </div>
+
+    <!-- Filtre de dates -->
+    <div class="date-filter">
+      <div class="date-input-group">
+        <label>Du</label>
+        <input type="date" [(ngModel)]="fromDate" />
+      </div>
+      <div class="date-sep">→</div>
+      <div class="date-input-group">
+        <label>Au</label>
+        <input type="date" [(ngModel)]="toDate" />
+      </div>
+      <button class="btn-apply" (click)="load()">
+        <span>Appliquer</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── État de chargement ──────────────────────────── -->
+  <div class="loader-wrap" *ngIf="loading">
+    <div class="loader-ring"></div>
+    <span>Chargement des données…</span>
+  </div>
+
+  <div class="error-banner" *ngIf="error && !loading">
+    <span>⚠</span> Impossible de charger les données. Vérifiez la connexion au serveur.
+  </div>
+
+  <!-- ── Contenu principal ───────────────────────────── -->
+  <div class="dashboard" *ngIf="summary && !loading">
+
+    <!-- ── KPI Global ─────────────────────────────── -->
+    <div class="kpi-global">
+      <div class="kpi-card kpi-grand">
+        <div class="kpi-label">Volume Total</div>
+        <div class="kpi-value">{{ formatAmount(summary.grandTotalAmount) }}</div>
+        <div class="kpi-sub">{{ formatCount(summary.grandTotalCount) }} transactions</div>
+      </div>
+    </div>
+
+
+
+    <!-- ── KPI Dépenses & Revenus ─────────────────── -->
+    <div class="kpi-row">
+
+      <!-- Dépenses -->
+      <div class="kpi-card kpi-expense" (click)="goToExpense()" style="cursor:pointer">
+        <div class="kpi-icon expense-icon">↑</div>
+        <div class="kpi-body">
+          <div class="kpi-label">Dépenses Totales</div>
+          <div class="kpi-value">{{ formatAmount(summary.totalExpenseAmount) }}</div>
+          <div class="kpi-sub">{{ formatCount(summary.totalExpenseCount) }} transactions</div>
+        </div>
+        <div class="kpi-badge expense-badge">
+          {{ summary.expensePercentAmount }}%
+        </div>
+      </div>
+
+      <!-- Revenus -->
+      <div class="kpi-card kpi-revenue" (click)="goToRevenue()" style="cursor:pointer">
+        <div class="kpi-icon revenue-icon">↓</div>
+        <div class="kpi-body">
+          <div class="kpi-label">Revenus Totaux</div>
+          <div class="kpi-value">{{ formatAmount(summary.totalRevenueAmount) }}</div>
+          <div class="kpi-sub">{{ formatCount(summary.totalRevenueCount) }} transactions</div>
+        </div>
+        <div class="kpi-badge revenue-badge">
+          {{ summary.revenuePercentAmount }}%
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section graphiques ──────────────────────── -->
+    <div class="charts-row">
+
+      <!-- Donut — Montants -->
+      <div class="chart-card">
+        <div class="chart-title">Répartition par Montant</div>
+        <div class="donut-wrap">
+          <svg viewBox="0 0 300 300" class="donut-svg">
+            <!-- Fond -->
+            <circle cx="150" cy="150" r="110" fill="none"
+                    stroke="#1e2535" stroke-width="38"/>
+            <!-- Arc dépenses -->
+            <path [attr.d]="expenseArc" fill="none"
+                  stroke="#f87171" stroke-width="38"
+                  stroke-linecap="round" class="arc-animate"/>
+            <!-- Arc revenus -->
+            <path [attr.d]="revenueArc" fill="none"
+                  stroke="#34d399" stroke-width="38"
+                  stroke-linecap="round" class="arc-animate"/>
+            <!-- Cercle intérieur -->
+            <circle cx="150" cy="150" r="72" fill="#131929"/>
+            <!-- Texte centre -->
+            <text x="150" y="143" text-anchor="middle"
+                  fill="#e2e8f0" font-size="13" font-family="'DM Mono', monospace">
+              TOTAL
+            </text>
+            <text x="150" y="163" text-anchor="middle"
+                  fill="#94a3b8" font-size="11" font-family="'DM Mono', monospace">
+              {{ summary.grandTotalCount }} tx
+            </text>
+          </svg>
+
+          <!-- Légende -->
+          <div class="donut-legend">
+            <div class="legend-item">
+              <span class="legend-dot expense-dot"></span>
+              <div>
+                <div class="legend-label">Dépenses</div>
+                <div class="legend-value">{{ summary.expensePercentAmount }}%</div>
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot revenue-dot"></span>
+              <div>
+                <div class="legend-label">Revenus</div>
+                <div class="legend-value">{{ summary.revenuePercentAmount }}%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Donut — Nombre de transactions -->
+      <div class="chart-card">
+        <div class="chart-title">Répartition par Nombre de Transactions</div>
+        <div class="donut-wrap">
+          <svg viewBox="0 0 300 300" class="donut-svg">
+            <circle cx="150" cy="150" r="110" fill="none"
+                    stroke="#1e2535" stroke-width="38"/>
+            <path [attr.d]="expenseArcCount" fill="none"
+                  stroke="#fb923c" stroke-width="38"
+                  stroke-linecap="round" class="arc-animate"/>
+            <path [attr.d]="revenueArcCount" fill="none"
+                  stroke="#60a5fa" stroke-width="38"
+                  stroke-linecap="round" class="arc-animate"/>
+            <circle cx="150" cy="150" r="72" fill="#131929"/>
+            <text x="150" y="143" text-anchor="middle"
+                  fill="#e2e8f0" font-size="13" font-family="'DM Mono', monospace">
+              TRANSACTIONS
+            </text>
+            <text x="150" y="163" text-anchor="middle"
+                  fill="#94a3b8" font-size="11" font-family="'DM Mono', monospace">
+              {{ formatCount(summary.grandTotalCount) }}
+            </text>
+          </svg>
+
+          <div class="donut-legend">
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#fb923c"></span>
+              <div>
+                <div class="legend-label">Dépenses</div>
+                <div class="legend-value">{{ summary.expensePercentCount }}%</div>
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#60a5fa"></span>
+              <div>
+                <div class="legend-label">Revenus</div>
+                <div class="legend-value">{{ summary.revenuePercentCount }}%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barres comparatives -->
+      <div class="chart-card chart-bars">
+        <div class="chart-title">Comparaison Détaillée</div>
+
+        <div class="bar-group">
+          <div class="bar-label">
+            <span>Montant Dépenses</span>
+            <span class="bar-pct expense-pct">{{ summary.expensePercentAmount }}%</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill expense-fill"
+                 [style.width.%]="summary.expensePercentAmount"></div>
+          </div>
+          <div class="bar-amount">{{ formatAmount(summary.totalExpenseAmount) }}</div>
+        </div>
+
+        <div class="bar-group">
+          <div class="bar-label">
+            <span>Montant Revenus</span>
+            <span class="bar-pct revenue-pct">{{ summary.revenuePercentAmount }}%</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill revenue-fill"
+                 [style.width.%]="summary.revenuePercentAmount"></div>
+          </div>
+          <div class="bar-amount">{{ formatAmount(summary.totalRevenueAmount) }}</div>
+        </div>
+
+        <div class="divider-bar"></div>
+
+        <div class="bar-group">
+          <div class="bar-label">
+            <span>Nb tx Dépenses</span>
+            <span class="bar-pct expense-pct">{{ summary.expensePercentCount }}%</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="background:#fb923c"
+                 [style.width.%]="summary.expensePercentCount"></div>
+          </div>
+          <div class="bar-amount">{{ formatCount(summary.totalExpenseCount) }} tx</div>
+        </div>
+
+        <div class="bar-group">
+          <div class="bar-label">
+            <span>Nb tx Revenus</span>
+            <span class="bar-pct revenue-pct">{{ summary.revenuePercentCount }}%</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="background:#60a5fa"
+                 [style.width.%]="summary.revenuePercentCount"></div>
+          </div>
+          <div class="bar-amount">{{ formatCount(summary.totalRevenueCount) }} tx</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

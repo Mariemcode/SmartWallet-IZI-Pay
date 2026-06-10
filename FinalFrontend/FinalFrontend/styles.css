@@ -1,0 +1,264 @@
+/* ════════════════════════════════════════════════════════════════════
+   SmartWallet IZI Pay — Styles globaux
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Variables design tokens ──────────────────────────────────────── */
+:root {
+    /* Couleurs primaires (palette IZI Pay) */
+    --sw-primary:        #6366f1;   /* Indigo principal */
+    --sw-primary-dark:   #4f46e5;
+    --sw-primary-light:  #818cf8;
+    --sw-primary-50:     #eef2ff;
+    --sw-primary-100:    #e0e7ff;
+
+    /* Accent (orange tunisien chaleureux) */
+    --sw-accent:         #f97316;
+    --sw-accent-dark:    #ea580c;
+    --sw-accent-light:   #fb923c;
+
+    /* Sémantique */
+    --sw-success:        #10b981;
+    --sw-success-50:     #ecfdf5;
+    --sw-warning:        #f59e0b;
+    --sw-warning-50:     #fffbeb;
+    --sw-danger:         #ef4444;
+    --sw-danger-50:      #fef2f2;
+    --sw-info:           #3b82f6;
+    --sw-info-50:        #eff6ff;
+
+    /* Neutres */
+    --sw-bg:             #f8fafc;
+    --sw-bg-elevated:    #ffffff;
+    --sw-bg-muted:       #f1f5f9;
+    --sw-border:         #e2e8f0;
+    --sw-border-strong:  #cbd5e1;
+
+    /* Texte */
+    --sw-text:           #0f172a;
+    --sw-text-muted:     #64748b;
+    --sw-text-light:     #94a3b8;
+    --sw-text-inverse:   #ffffff;
+
+    /* Ombres (Material 3 inspired) */
+    --sw-shadow-sm:      0 1px 2px 0 rgba(15, 23, 42, 0.05);
+    --sw-shadow:         0 1px 3px 0 rgba(15, 23, 42, 0.1), 0 1px 2px -1px rgba(15, 23, 42, 0.1);
+    --sw-shadow-md:      0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -2px rgba(15, 23, 42, 0.1);
+    --sw-shadow-lg:      0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -4px rgba(15, 23, 42, 0.1);
+    --sw-shadow-xl:      0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
+
+    /* Rayons d'angles */
+    --sw-radius-sm:      6px;
+    --sw-radius:         10px;
+    --sw-radius-md:      12px;
+    --sw-radius-lg:      16px;
+    --sw-radius-xl:      24px;
+    --sw-radius-full:    9999px;
+
+    /* Espacements (multiples de 4) */
+    --sw-space-1:        4px;
+    --sw-space-2:        8px;
+    --sw-space-3:        12px;
+    --sw-space-4:        16px;
+    --sw-space-5:        20px;
+    --sw-space-6:        24px;
+    --sw-space-8:        32px;
+    --sw-space-10:       40px;
+    --sw-space-12:       48px;
+
+    /* Transitions */
+    --sw-transition:     all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --sw-transition-fast:all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Typographie */
+    --sw-font-sans:      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --sw-font-mono:      'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ── Reset & base ─────────────────────────────────────────────────── */
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--sw-font-sans);
+    color: var(--sw-text);
+    background: var(--sw-bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+body {
+    line-height: 1.5;
+}
+
+/* ── Scrollbar moderne ────────────────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--sw-border-strong);
+    border-radius: var(--sw-radius);
+    border: 2px solid var(--sw-bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--sw-text-light);
+}
+
+/* ── Sélection texte ─────────────────────────────────────────────── */
+::selection {
+    background: var(--sw-primary-100);
+    color: var(--sw-primary-dark);
+}
+
+/* ── Focus states accessibles ────────────────────────────────────── */
+:focus-visible {
+    outline: 2px solid var(--sw-primary);
+    outline-offset: 2px;
+    border-radius: var(--sw-radius-sm);
+}
+
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+}
+
+/* ── Toast notifications (préservé du projet original) ──────────── */
+@keyframes fadeInOut {
+    0%   { opacity: 0; transform: translateX(20px); }
+    10%  { opacity: 1; transform: translateX(0); }
+    90%  { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0; transform: translateX(20px); }
+}
+
+.toast-notification {
+    animation: fadeInOut 3s ease forwards;
+    font-family: var(--sw-font-sans);
+    font-weight: 500;
+    box-shadow: var(--sw-shadow-lg) !important;
+}
+
+/* ── Animations utilitaires ──────────────────────────────────────── */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes shimmer {
+    0%   { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.5; }
+}
+
+.sw-animate-slideInUp { animation: slideInUp 0.4s ease-out; }
+.sw-animate-fadeIn    { animation: fadeIn    0.3s ease-out; }
+.sw-animate-pulse     { animation: pulse     2s ease-in-out infinite; }
+
+/* ── Skeleton loader réutilisable ────────────────────────────────── */
+.sw-skeleton {
+    background: linear-gradient(90deg,
+    var(--sw-bg-muted) 0%,
+    var(--sw-border) 50%,
+    var(--sw-bg-muted) 100%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+    border-radius: var(--sw-radius-sm);
+}
+
+/* ── Classes utilitaires globales ───────────────────────────────── */
+.sw-card {
+    background: var(--sw-bg-elevated);
+    border-radius: var(--sw-radius-lg);
+    box-shadow: var(--sw-shadow);
+    border: 1px solid var(--sw-border);
+    padding: var(--sw-space-6);
+    transition: var(--sw-transition);
+}
+
+.sw-card:hover {
+    box-shadow: var(--sw-shadow-md);
+}
+
+.sw-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sw-space-2);
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: var(--sw-radius);
+    border: none;
+    cursor: pointer;
+    transition: var(--sw-transition);
+    text-decoration: none;
+    font-family: inherit;
+}
+
+.sw-btn-primary {
+    background: var(--sw-primary);
+    color: var(--sw-text-inverse);
+}
+
+.sw-btn-primary:hover {
+    background: var(--sw-primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--sw-shadow-md);
+}
+
+.sw-btn-primary:active {
+    transform: translateY(0);
+}
+
+.sw-btn-secondary {
+    background: var(--sw-bg-elevated);
+    color: var(--sw-text);
+    border: 1px solid var(--sw-border);
+}
+
+.sw-btn-secondary:hover {
+    background: var(--sw-bg-muted);
+    border-color: var(--sw-border-strong);
+}
+
+/* ── Badges sémantiques ──────────────────────────────────────────── */
+.sw-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: var(--sw-radius-full);
+}
+
+.sw-badge-success { background: var(--sw-success-50); color: var(--sw-success); }
+.sw-badge-warning { background: var(--sw-warning-50); color: var(--sw-warning); }
+.sw-badge-danger  { background: var(--sw-danger-50);  color: var(--sw-danger); }
+.sw-badge-info    { background: var(--sw-info-50);    color: var(--sw-info); }

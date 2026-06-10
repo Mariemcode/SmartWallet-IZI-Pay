@@ -1,0 +1,171 @@
+<div class="form-page">
+
+  <!-- ── Header ──────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+      <button class="btn-back" (click)="cancel()">
+        <i class="bi bi-arrow-left"></i> Retour
+      </button>
+      <div class="header-info">
+        <h1>
+          {{ isEditMode ? 'Modifier la' : 'Nouvelle' }}
+          <span class="accent">{{ isEditMode ? 'recommandation' : 'recommandation' }}</span>
+        </h1>
+        <span *ngIf="isEditMode && recommendationId" class="offer-code-tag">
+          <i class="bi bi-hash"></i> ID : {{ recommendationId }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Loader ───────────────────────────────────────────────────── -->
+  <div class="loader-wrap" *ngIf="loading">
+    <div class="loader-ring"></div>
+    <span>{{ isEditMode ? 'Chargement de la recommandation…' : 'Chargement du formulaire…' }}</span>
+  </div>
+
+  <!-- ── Formulaire ───────────────────────────────────────────────── -->
+  <form *ngIf="!loading" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate class="form-body">
+
+    <!-- ── Section 1 : Informations générales ─────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-info-circle"></i> Informations générales
+        </div>
+      </div>
+      <div class="section-body">
+
+        <div class="form-row two-cols">
+          <div class="form-group">
+            <label for="profileName">Profil cible <span class="required">*</span></label>
+            <select
+              id="profileName"
+              formControlName="profileName"
+              [class.input-error]="form.get('profileName')?.invalid && form.get('profileName')?.touched">
+              <option value="">— Sélectionnez un profil —</option>
+              <option *ngFor="let p of profileOptions" [value]="p">{{ p }}</option>
+            </select>
+            <div class="error-msg"
+                 *ngIf="form.get('profileName')?.invalid && form.get('profileName')?.touched">
+              Le profil est obligatoire
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="offerCode">Offre associée <span class="required">*</span></label>
+            <select
+              id="offerCode"
+              formControlName="offerCode"
+              (change)="onOfferChange()"
+              [class.input-error]="form.get('offerCode')?.invalid && form.get('offerCode')?.touched">
+              <option value="">— Sélectionnez une offre —</option>
+              <option *ngFor="let off of offerOptions" [value]="off.code">{{ off.code }} - {{ off.title }}</option>
+            </select>
+            <div class="error-msg"
+                 *ngIf="form.get('offerCode')?.invalid && form.get('offerCode')?.touched">
+              L'offre est obligatoire
+            </div>
+          </div>
+        </div>
+
+        <!-- Description de l'offre sélectionnée (lecture seule) -->
+        <div class="form-group full-width" *ngIf="selectedOfferDescription">
+          <label>Description de l'offre</label>
+          <div class="info-box offer-description">
+            <i class="bi bi-file-text-fill"></i>
+            {{ selectedOfferDescription }}
+          </div>
+        </div>
+
+        <div class="form-row two-cols">
+
+
+          <div class="form-group" *ngIf="isEditMode">
+            <label for="status">Statut <span class="required">*</span></label>
+            <select id="status" formControlName="status">
+              <option *ngFor="let s of statusOptions" [value]="s">{{ s }}</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Section 2 : Description de la recommandation (avec IA) ──── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-chat-text"></i> Description de la recommandation
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="form-group full-width">
+          <label for="description">Contenu personnalisé</label>
+          <div class="description-wrapper">
+            <textarea
+              id="description"
+              formControlName="description"
+              rows="4"
+              placeholder="Expliquez pourquoi cette offre est recommandée pour ce profil...">
+            </textarea>
+            <button
+              type="button"
+              class="btn-generate-ia"
+              (click)="generateAIDescription()"
+              [disabled]="!form.get('offerCode')?.value || loading">
+              <i class="bi bi-stars"></i>
+              <span *ngIf="!loading">Générer avec l'IA</span>
+              <span *ngIf="loading">Génération...</span>
+            </button>
+          </div>
+          <div class="info-note">
+            <i class="bi bi-info-circle"></i> L'IA génère une description basée sur l'offre sélectionnée.
+          </div>
+        </div>
+
+        <!-- Description auto-générée existante (mode édition) -->
+        <div class="form-group full-width" *ngIf="isEditMode && recommendationDescription">
+          <label>Description automatique (lue seule)</label>
+          <div class="info-box reco-description">
+            <i class="bi bi-robot"></i>
+            {{ recommendationDescription }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 3 : Note administrative ─────────────────────────── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-journal-bookmark-fill"></i> Note administrative
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="form-group full-width">
+          <label for="note">Note interne (optionnelle)</label>
+          <textarea
+            id="note"
+            formControlName="note"
+            rows="3"
+            placeholder="Ajoutez une note pour l'équipe marketing...">
+          </textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Actions ─────────────────────────────────────────────────── -->
+    <div class="form-actions">
+      <button type="button" class="btn-cancel" (click)="cancel()">
+        <i class="bi bi-x-lg"></i> Annuler
+      </button>
+      <button type="submit" class="btn-submit" [disabled]="form.invalid || loading">
+        <i class="bi" [class.bi-check-lg]="!isEditMode" [class.bi-floppy]="isEditMode"></i>
+        <span *ngIf="!loading">{{ isEditMode ? 'Mettre à jour' : 'Ajouter la recommandation' }}</span>
+        <span *ngIf="loading">Enregistrement…</span>
+      </button>
+    </div>
+
+  </form>
+</div>

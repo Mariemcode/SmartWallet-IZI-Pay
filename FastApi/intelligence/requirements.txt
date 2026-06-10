@@ -1,0 +1,45 @@
+# ═════════════════════════════════════════════════════════════════════
+# SmartWallet ML Service — Requirements unifiés (port 8000)
+# ═════════════════════════════════════════════════════════════════════
+
+# ── Web framework ──
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+python-multipart==0.0.12
+
+# ── Data science ──
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+scipy==1.13.1
+joblib==1.4.2
+xgboost==2.1.1
+
+# ── Database ──
+psycopg2-binary==2.9.10
+
+# ── Environment ──
+python-dotenv==1.0.1
+
+# ── HTTP client (notifications Spring Boot) ──
+requests==2.32.3
+
+# ── Scheduler optionnel ──
+apscheduler==3.10.4
+
+# ── Visualisations (recommendation_system) ──
+matplotlib==3.9.2
+seaborn==0.13.2
+
+# ── OCR (optionnel — décommenter si nécessaire) ──
+# Pillow==10.4.0
+# pytesseract==0.3.13
+# opencv-python-headless==4.10.0.84
+
+# ── Chatbot LLM (optionnel — décommenter si LoRA) ──
+# torch==2.4.1
+# transformers==4.45.2
+# peft==0.13.2
+# safetensors==0.4.5
+# accelerate==0.34.2

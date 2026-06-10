@@ -1,0 +1,240 @@
+<div class="page-wrapper">
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- HEADER                                                        -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div class="page-header">
+    <div class="header-left">
+      <span class="header-tag">
+        CLIENTS
+      </span>
+      <h1>Liste <span class="accent">des Clients</span></h1>
+      <p class="subtitle">
+        <i class="bi bi-person-check"></i>
+        Consultez et gérez l'ensemble des clients enregistrés
+      </p>
+    </div>
+
+    <div class="header-stats">
+      <div class="hstat-card">
+        <i class="bi bi-people"></i>
+        <div>
+          <div class="hstat-val">{{ totalClients }}</div>
+          <div class="hstat-label">Total clients</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- TOOLBAR                                                       -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div class="toolbar">
+
+    <!-- Recherche -->
+    <div class="search-box" [class.active]="searchFocused">
+      <i class="bi bi-search search-icon"></i>
+      <input
+        type="text"
+        placeholder="Rechercher par prénom, nom ou téléphone…"
+        [(ngModel)]="searchTerm"
+        (input)="onSearch()"
+        (focus)="searchFocused = true"
+        (blur)="searchFocused = false"
+      />
+      <button class="clear-btn" *ngIf="searchTerm" (click)="clearSearch()" title="Effacer">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <!-- Compteur résultats -->
+    <div class="result-badge" *ngIf="searchTerm">
+      <i class="bi bi-filter-circle"></i>
+      {{ clients.length }} résultat{{ clients.length !== 1 ? 's' : '' }}
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- LOADER                                                        -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <span>Chargement des clients…</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- ERREUR                                                        -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div class="error-alert" *ngIf="error">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span>{{ error }}</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- TABLE                                                         -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div class="table-card" *ngIf="!loading && !error">
+
+    <!-- Barre de recherche en cours -->
+    <div class="progress-bar" *ngIf="searching">
+      <div class="progress-fill"></div>
+    </div>
+
+    <div class="table-responsive">
+      <table>
+
+        <thead>
+          <tr>
+            <th class="th-idx">#</th>
+            <th>
+              <span class="th-inner">
+                <i class="bi bi-person"></i> Client
+              </span>
+            </th>
+            <th>
+              <span class="th-inner">
+                <i class="bi bi-telephone"></i> Téléphone
+              </span>
+            </th>
+            <th>
+              <span class="th-inner">
+                <i class="bi bi-calendar3"></i> Date d'inscription
+              </span>
+            </th>
+            <th class="th-center">
+              <span class="th-inner">Actions</span>
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          <!-- Lignes clients -->
+          <tr *ngFor="let client of pagedClients; let i = index"
+              class="client-row">
+
+            <!-- Index -->
+            <td class="td-idx">
+              {{ (currentPage - 1) * pageSize + i + 1 }}
+            </td>
+
+            <!-- Client (avatar + nom + initiales) -->
+            <td class="td-client">
+              <div class="client-cell">
+                <div class="avatar" [style.background]="getAvatarColor(client.firstName + client.lastName)">
+                  {{ getInitials(client.firstName, client.lastName) }}
+                </div>
+                <div class="client-info">
+                  <span class="client-name">
+                    {{ client.firstName }} <strong>{{ client.lastName }}</strong>
+                  </span>
+                </div>
+              </div>
+            </td>
+
+            <!-- Téléphone -->
+            <td class="td-phone">
+              <div class="phone-cell">
+                <i class="bi bi-telephone-fill"></i>
+                {{ client.phoneNumber }}
+              </div>
+            </td>
+
+            <!-- Date -->
+            <td class="td-date">
+              <div class="date-cell">
+                <span class="date-main">
+                  {{ client.createDateTime | date: 'dd MMM yyyy' }}
+                </span>
+                <span class="date-time">
+                  <i class="bi bi-clock"></i>
+                  {{ client.createDateTime | date: 'HH:mm' }}
+                </span>
+              </div>
+            </td>
+
+            <!-- Action -->
+            <td class="td-center">
+              <button class="btn-detail"
+                      [routerLink]="['/layout/client/detail', client.id]"
+                      title="Voir le détail">
+                <i class="bi bi-eye"></i>
+                <span>Voir</span>
+              </button>
+            </td>
+
+          </tr>
+
+          <!-- État vide -->
+          <tr *ngIf="clients.length === 0 && !searching">
+            <td colspan="5">
+              <div class="empty-state">
+                <div class="empty-icon-wrap">
+                  <i class="bi bi-person-slash"></i>
+                </div>
+                <p class="empty-title">Aucun client trouvé</p>
+                <p class="empty-sub" *ngIf="searchTerm">
+                  Aucun résultat pour <strong>"{{ searchTerm }}"</strong>
+                </p>
+                <button class="btn-reset" (click)="clearSearch()" *ngIf="searchTerm">
+                  <i class="bi bi-arrow-counterclockwise"></i> Réinitialiser la recherche
+                </button>
+              </div>
+            </td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Pagination ──────────────────────────────────────────────── -->
+    <div class="pagination-bar" *ngIf="totalPages > 1">
+
+      <span class="pagination-info">
+        <i class="bi bi-table"></i>
+        Page <strong>{{ currentPage }}</strong> / <strong>{{ totalPages }}</strong>
+        &nbsp;·&nbsp;
+        <strong>{{ clients.length }}</strong> résultat{{ clients.length > 1 ? 's' : '' }}
+      </span>
+
+      <div class="pagination-controls">
+        <button class="pg-btn" (click)="goToPage(1)"
+                [disabled]="currentPage === 1" title="Première page">
+          <i class="bi bi-chevron-double-left"></i>
+        </button>
+        <button class="pg-btn" (click)="goToPage(currentPage - 1)"
+                [disabled]="currentPage === 1" title="Précédent">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+
+        <button *ngFor="let p of pageNumbers"
+                class="pg-btn pg-num"
+                [class.active]="p === currentPage"
+                (click)="goToPage(p)">
+          {{ p }}
+        </button>
+
+        <button class="pg-btn" (click)="goToPage(currentPage + 1)"
+                [disabled]="currentPage === totalPages" title="Suivant">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+        <button class="pg-btn" (click)="goToPage(totalPages)"
+                [disabled]="currentPage === totalPages" title="Dernière page">
+          <i class="bi bi-chevron-double-right"></i>
+        </button>
+      </div>
+
+      <div class="page-size-selector">
+        <span>Lignes :</span>
+        <select [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+          <option [value]="10">10</option>
+          <option [value]="20">20</option>
+          <option [value]="50">50</option>
+        </select>
+      </div>
+
+    </div>
+
+  </div>
+</div>

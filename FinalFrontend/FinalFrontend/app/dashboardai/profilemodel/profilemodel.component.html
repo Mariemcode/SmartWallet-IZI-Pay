@@ -1,0 +1,326 @@
+<div class="monitoring-page">
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <div class="page-header">
+
+        <div class="header-left">
+            <span class="header-tag"><i class="bi bi-graph-up"></i> MONITORING</span>
+            <h1>
+                <span class="accent">Modèle de classement des profiles</span>
+                <span class="fragile-badge" *ngIf="health?.drift?.status === 'drift'">
+          <i class="bi bi-exclamation-triangle-fill"></i> Drift détecté
+        </span>
+            </h1>
+            <p class="subtitle">État de santé, KPIs, drift, alertes et historique des ré‑entraînements</p>
+        </div>
+
+        <div class="header-actions">
+            <button class="btn-retrain" (click)="triggerRetrain()" [disabled]="retrainLoading">
+                <span *ngIf="retrainLoading" class="loader-ring-sm"></span>
+                <i *ngIf="!retrainLoading" class="bi bi-arrow-repeat"></i>
+                {{ retrainLoading ? 'Déclenchement...' : 'Ré-entraîner' }}
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Loader ──────────────────────────────────────────────────── -->
+    <div class="loader-wrap" *ngIf="loadingHealth && loadingKpi && loadingDrift">
+        <div class="loader-ring"></div>
+        <span>Chargement des données...</span>
+    </div>
+
+    <!-- ═══════════════════════════ DASHBOARD ══════════════════════════ -->
+    <div class="dashboard" *ngIf="!loadingHealth || !loadingKpi || !loadingDrift">
+
+        <!-- ── ROW A : 4 KPI cards santé ──────────────────────────────── -->
+        <div class="row-a" *ngIf="health">
+
+            <!-- Carte 1 : Modèle -->
+            <div class="kpi-card kpi-blue">
+                <div class="kpi-icon-wrap"><i class="bi bi-cpu-fill"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">Modèle</div>
+                    <div class="kpi-value model-name">{{ health.model || 'N/A' }}</div>
+                    <span class="status-chip" [ngClass]="health.loaded ? 'chip-success' : 'chip-muted'">
+            {{ health.loaded ? 'Chargé' : 'Non chargé' }}
+          </span>
+                </div>
+            </div>
+
+            <!-- Carte 2 : Dernier run -->
+            <div class="kpi-card kpi-purple">
+                <div class="kpi-icon-wrap"><i class="bi bi-clock-history"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">Dernier run</div>
+                    <div class="kpi-value kpi-date">
+                        {{ health.drift?.last_run ? formatDate(health.drift.last_run) : '—' }}
+                    </div>
+                    <div class="kpi-sub">
+                        {{ health.drift?.n_clients ? (health.drift.n_clients | number) : '0' }} clients analysés
+                    </div>
+                </div>
+            </div>
+
+            <!-- Carte 3 : PSI max -->
+            <div class="kpi-card" [ngClass]="getPsiCardClass(health.drift?.status)">
+                <div class="kpi-icon-wrap"><i class="bi bi-activity"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">PSI max</div>
+                    <div class="kpi-value">
+                        {{ health.drift?.psi_max != null ? (health.drift.psi_max | number:'1.3-4') : '—' }}
+                    </div>
+                    <span class="status-chip" [ngClass]="getPsiBadgeClass(health.drift?.status)">
+            {{ health.drift?.status ? (health.drift.status | uppercase) : 'N/A' }}
+          </span>
+                </div>
+            </div>
+
+            <!-- Carte 4 : % churn élevé -->
+            <div class="kpi-card kpi-teal">
+                <div class="kpi-icon-wrap"><i class="bi bi-person-dash-fill"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">% churn élevé</div>
+                    <div class="kpi-value">
+                        {{ health.drift?.churn_pct_high_risk != null ? (health.drift.churn_pct_high_risk | percent:'1.0-1') : '—' }}
+                    </div>
+                    <div class="kpi-sub">seuil &gt; 0.5</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fallback si health existe mais pas de drift -->
+        <div class="row-a" *ngIf="health && !health.drift">
+            <div class="kpi-card kpi-muted">
+                <div class="kpi-icon-wrap"><i class="bi bi-info-circle"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-label">Données de drift</div>
+                    <div class="kpi-value">Non disponibles</div>
+                    <div class="kpi-sub">Le modèle n'a peut-être pas encore été exécuté</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Retrain status bar ──────────────────────────────────────── -->
+        <div class="retrain-bar" *ngIf="retrainStatus">
+            <div class="retrain-item">
+                <span class="retrain-label">Ré-entraînement en cours</span>
+                <span class="retrain-val" [class.val-active]="retrainStatus?.running">
+          {{ retrainStatus?.running ? 'Oui' : 'Non' }}
+        </span>
+            </div>
+            <div class="retrain-divider"></div>
+            <div class="retrain-item">
+                <span class="retrain-label">Dernier lancement</span>
+                <span class="retrain-val">{{ formatDate(retrainStatus?.last_run) || '—' }}</span>
+            </div>
+            <div class="retrain-divider"></div>
+            <div class="retrain-item">
+                <span class="retrain-label">Dernier résultat</span>
+                <span class="retrain-val">{{ retrainStatus?.last_result || '—' }}</span>
+            </div>
+            <div class="retrain-divider"></div>
+            <div class="retrain-item">
+                <span class="retrain-label">Déclenché par</span>
+                <span class="retrain-val">{{ retrainStatus?.triggered_by || '—' }}</span>
+            </div>
+        </div>
+
+        <!-- ── ROW B : KPIs métier ─────────────────────────────────────── -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-title"><i class="bi bi-bar-chart-steps"></i> KPIs Métiers par Profil</div>
+                <div class="section-sub" *ngIf="kpiList?.length">{{ kpiList.length }} profils</div>
+            </div>
+            <div class="section-body p-0">
+                <div *ngIf="loadingKpi" class="loader-inline">
+                    <div class="loader-ring"></div>
+                </div>
+                <div *ngIf="!loadingKpi && kpiList?.length" class="kpi-scroll">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Profil</th>
+                            <th>Churn 30j</th>
+                            <th>% Risque &gt;0.5</th>
+                            <th>ARPU (TND)</th>
+                            <th>LTV 12m (TND)</th>
+                            <th>Score risque</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr *ngFor="let kpi of kpiList">
+                            <td>
+                  <span class="cluster-dot" [style.background]="getColor(kpi?.cluster_id)">
+                    {{ kpi?.cluster_id }}
+                  </span>
+                            </td>
+                            <td><strong class="profile-name">{{ kpi?.profile_name || 'N/A' }}</strong></td>
+                            <td>
+                  <span class="metric-val" [ngClass]="getChurnClass(kpi?.churn_score_30j)">
+                    {{ kpi?.churn_score_30j | number:'1.2-3' }}
+                  </span>
+                            </td>
+                            <td>
+                                <div class="bar-wrap">
+                                    <div class="bar-fill bar-danger" [style.width.%]="(kpi?.churn_pct_high_risk || 0) * 100"></div>
+                                </div>
+                                <span class="bar-label">{{ (kpi?.churn_pct_high_risk || 0) | percent:'1.0-1' }}</span>
+                            </td>
+                            <td>{{ kpi?.arpu_mensuel | number:'1.2-2' }}</td>
+                            <td><strong>{{ kpi?.ltv_12m_base | number:'1.2-2' }}</strong></td>
+                            <td>
+                                <div class="score-pill" [ngClass]="getRiskClass(kpi?.score_risque)">
+                                    {{ kpi?.score_risque | number:'1.2-3' }}
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div *ngIf="!loadingKpi && !kpiList?.length" class="empty-state">
+                    <i class="bi bi-inbox"></i> Aucune donnée KPI disponible.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── ROW C : Drift + Alertes ────────────────────────────────── -->
+        <div class="row-b">
+
+            <!-- Historique drift -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="section-title"><i class="bi bi-clock-history"></i> Historique des runs & Drift</div>
+                </div>
+                <div class="section-body p-0">
+                    <div *ngIf="loadingDrift" class="loader-inline">
+                        <div class="loader-ring"></div>
+                    </div>
+                    <div *ngIf="!loadingDrift && driftRuns?.length" class="kpi-scroll">
+                        <table class="data-table data-table-sm">
+                            <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Date</th>
+                                <th>PSI</th>
+                                <th>Statut</th>
+                                <th>Accuracy</th>
+                                <th>F1</th>
+                                <th>Fragiles</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr *ngFor="let run of driftRuns">
+                                <td><code class="version-code">{{ run?.model_version || 'N/A' }}</code></td>
+                                <td class="date-cell">{{ formatDate(run?.run_at) }}</td>
+                                <td>{{ run?.psi_max | number:'1.3-4' }}</td>
+                                <td>
+                    <span class="status-chip" [ngClass]="getPsiBadgeClass(run?.psi_status)">
+                      {{ run?.psi_status || 'N/A' }}
+                    </span>
+                                </td>
+                                <td>{{ run?.gbm_accuracy | number:'1.3-4' }}</td>
+                                <td>{{ run?.gbm_test_f1 | number:'1.3-4' }}</td>
+                                <td>
+                    <span *ngIf="run?.fragile_profiles?.length" class="fragile-tag">
+                      P{{ run.fragile_profiles.join(', P') }}
+                    </span>
+                                    <span *ngIf="!run?.fragile_profiles?.length" class="none-label">—</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div *ngIf="!loadingDrift && !driftRuns?.length" class="empty-state">
+                        <i class="bi bi-inbox"></i> Aucun historique de drift disponible.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alertes -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="section-title"><i class="bi bi-exclamation-triangle"></i> Alertes non résolues</div>
+                    <span *ngIf="alerts?.length" class="alert-count">{{ alerts.length }}</span>
+                </div>
+                <div class="section-body p-0">
+                    <div *ngIf="loadingAlerts" class="loader-inline">
+                        <div class="loader-ring"></div>
+                    </div>
+                    <div *ngIf="!loadingAlerts && alerts?.length" class="kpi-scroll">
+                        <table class="data-table data-table-sm">
+                            <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Feature</th>
+                                <th>PSI</th>
+                                <th>Sévérité</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr *ngFor="let alert of alerts">
+                                <td class="date-cell">{{ formatDate(alert?.triggered_at) }}</td>
+                                <td>{{ alert?.alert_type || 'N/A' }}</td>
+                                <td><code class="feature-code">{{ alert?.feature_name || 'N/A' }}</code></td>
+                                <td>{{ alert?.psi_value | number:'1.3-4' }}</td>
+                                <td>
+                    <span class="status-chip" [ngClass]="getSeverityBadgeClass(alert?.severity)">
+                      {{ alert?.severity || 'N/A' }}
+                    </span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div *ngIf="!loadingAlerts && !alerts?.length" class="success-state">
+                        <i class="bi bi-shield-check"></i> Aucune alerte active.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── ROW D : Migrations ──────────────────────────────────────── -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-title"><i class="bi bi-arrow-left-right"></i> Migrations de profils</div>
+                <div class="section-sub" *ngIf="migrations?.length">{{ migrations.length }} mouvements</div>
+            </div>
+            <div class="section-body p-0">
+                <div *ngIf="loadingMigrations" class="loader-inline">
+                    <div class="loader-ring"></div>
+                </div>
+                <div *ngIf="!loadingMigrations && migrations?.length" class="kpi-scroll">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>Ancien profil</th>
+                            <th></th>
+                            <th>Nouveau profil</th>
+                            <th>Nombre</th>
+                            <th>Première migration</th>
+                            <th>Dernière migration</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr *ngFor="let m of migrations">
+                            <td class="profile-from">{{ m?.profile_name_old || 'N/A' }}</td>
+                            <td><i class="bi bi-arrow-right migration-arrow"></i></td>
+                            <td><strong class="profile-name">{{ m?.profile_name_new || 'N/A' }}</strong></td>
+                            <td>
+                                <span class="count-badge">{{ m?.nb_migrations | number }}</span>
+                            </td>
+                            <td class="date-cell">{{ formatDate(m?.first_migration) }}</td>
+                            <td class="date-cell">{{ formatDate(m?.last_migration) }}</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div *ngIf="!loadingMigrations && !migrations?.length" class="empty-state">
+                    <i class="bi bi-inbox"></i> Aucune migration de profils disponible.
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

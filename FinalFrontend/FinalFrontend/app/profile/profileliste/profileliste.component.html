@@ -1,0 +1,238 @@
+<div class="analysis-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <span class="header-tag">
+        <i class="bi bi-diagram-3"></i> CLASSIFICATION
+      </span>
+      <h1>Analyse des <span class="accent">Profils Clients</span></h1>
+      <p class="subtitle">
+        Répartition des clients et indicateurs clés par cluster comportemental
+      </p>
+    </div>
+
+    <div class="date-filter">
+      <button class="btn-apply" (click)="goToModel()">
+        <i class="bi bi-funnel-fill"></i> Model
+      </button>
+    </div>
+  </div>
+
+  <!-- Loader -->
+  <div class="loader-wrap" *ngIf="loading">
+    <div class="loader-ring"></div>
+    <span>Chargement des profils…</span>
+  </div>
+
+  <!-- Error -->
+  <div class="error-banner" *ngIf="error && !loading">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    Impossible de charger les données. Vérifiez la connexion au serveur.
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" *ngIf="profiles.length > 0 && !loading">
+
+    <!-- KPI Row -->
+    <div class="kpi-row">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon-wrap"><i class="bi bi-layers"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Nombre de profils</div>
+          <div class="kpi-value">{{ totalProfiles }}</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-indigo">
+        <div class="kpi-icon-wrap"><i class="bi bi-people"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Total clients</div>
+          <div class="kpi-value">{{ formatNumber(totalClients) }}</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon-wrap"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Churn moyen (30j)</div>
+          <div class="kpi-value">{{ (avgChurn * 100).toFixed(1) }}%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row : deux donuts -->
+    <div class="charts-row">
+
+      <!-- Donut 1 : Répartition par nombre de clients -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="bi bi-pie-chart-fill"></i>
+          <span class="chart-title">Répartition par nombre de clients</span>
+        </div>
+        <div class="donut-layout">
+          <svg viewBox="0 0 300 300" class="donut-svg">
+            <circle cx="150" cy="150" r="110" fill="none" stroke="#f0f4fa" stroke-width="44" />
+            <ng-container *ngFor="let a of countArcs; let i = index">
+              <path *ngIf="a.arc" [attr.d]="a.arc" fill="none" [attr.stroke]="a.color" stroke-width="44"
+                stroke-linecap="butt" class="arc-segment"
+                [class.arc-dimmed]="hoveredCount !== null && hoveredCount !== i" [class.arc-active]="hoveredCount === i"
+                (mouseenter)="hoveredCount = i" (mouseleave)="hoveredCount = null" />
+            </ng-container>
+            <ng-container *ngFor="let a of countArcs; let i = index">
+              <path *ngIf="a.arc" [attr.d]="a.arc" fill="none" stroke="#ffffff" stroke-width="2"
+                pointer-events="none" />
+            </ng-container>
+            <circle cx="150" cy="150" r="88" fill="#ffffff" />
+            <!-- Centre normal -->
+            <ng-container *ngIf="hoveredCount === null">
+              <text x="150" y="138" text-anchor="middle" fill="#6b7fa3" font-size="10"
+                font-family="'DM Sans', sans-serif" font-weight="500">CLIENTS</text>
+              <text x="150" y="158" text-anchor="middle" fill="#1a2740" font-size="14" font-family="'Syne', sans-serif"
+                font-weight="700">{{ formatNumber(totalClients) }}</text>
+              <text x="150" y="173" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                font-family="'DM Sans', sans-serif">au total</text>
+            </ng-container>
+            <!-- Centre hover -->
+            <ng-container *ngIf="hoveredCount !== null">
+              <text x="150" y="128" text-anchor="middle" fill="#6b7fa3" font-size="9"
+                font-family="'DM Sans', sans-serif" font-weight="500">{{ profiles[hoveredCount]?.profile_name |
+                slice:0:18 }}</text>
+              <text x="150" y="154" text-anchor="middle" [attr.fill]="getColor(hoveredCount)" font-size="26"
+                font-family="'Syne', sans-serif" font-weight="700">{{ profiles[hoveredCount]?.pct_clients }}%</text>
+              <text x="150" y="171" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                font-family="'DM Sans', sans-serif">{{ formatNumber(profiles[hoveredCount]?.n_clients || 0) }}
+                clients</text>
+            </ng-container>
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item" *ngFor="let p of profiles; let i = index"
+              [class.legend-active]="hoveredCount === i"
+              [class.legend-dimmed]="hoveredCount !== null && hoveredCount !== i" (mouseenter)="hoveredCount = i"
+              (mouseleave)="hoveredCount = null" (click)="goToDetails(p.cluster_id)">
+              <span class="legend-dot" [style.background]="getColor(i)"></span>
+              <div class="legend-text">
+                <div class="legend-name">{{ p.profile_name }}</div>
+                <div class="legend-sub">{{ formatNumber(p.n_clients) }} clients</div>
+              </div>
+              <span class="legend-pct" [style.color]="getColor(i)">{{ p.pct_clients }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Donut 2 : Répartition par LTV 12m -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <i class="bi bi-cash-stack"></i>
+          <span class="chart-title">Répartition par LTV 12 mois (base)</span>
+        </div>
+        <div class="donut-layout">
+          <svg viewBox="0 0 300 300" class="donut-svg">
+            <circle cx="150" cy="150" r="110" fill="none" stroke="#f0f4fa" stroke-width="44" />
+            <ng-container *ngFor="let a of ltvArcs; let i = index">
+              <path *ngIf="a.arc" [attr.d]="a.arc" fill="none" [attr.stroke]="a.color" stroke-width="44"
+                stroke-linecap="butt" class="arc-segment" [class.arc-dimmed]="hoveredLtv !== null && hoveredLtv !== i"
+                [class.arc-active]="hoveredLtv === i" (mouseenter)="hoveredLtv = i" (mouseleave)="hoveredLtv = null" />
+            </ng-container>
+            <ng-container *ngFor="let a of ltvArcs; let i = index">
+              <path *ngIf="a.arc" [attr.d]="a.arc" fill="none" stroke="#ffffff" stroke-width="2"
+                pointer-events="none" />
+            </ng-container>
+            <circle cx="150" cy="150" r="88" fill="#ffffff" />
+            <!-- Centre normal -->
+            <ng-container *ngIf="hoveredLtv === null">
+              <text x="150" y="135" text-anchor="middle" fill="#6b7fa3" font-size="10"
+                font-family="'DM Sans', sans-serif" font-weight="500">LTV 12m</text>
+              <text x="150" y="155" text-anchor="middle" fill="#1a2740" font-size="11" font-family="'Syne', sans-serif"
+                font-weight="700">{{ formatCurrency(totalLtv) }}</text>
+              <text x="150" y="170" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                font-family="'DM Sans', sans-serif">TND total</text>
+            </ng-container>
+            <!-- Centre hover -->
+            <ng-container *ngIf="hoveredLtv !== null">
+              <text x="150" y="128" text-anchor="middle" fill="#6b7fa3" font-size="9"
+                font-family="'DM Sans', sans-serif" font-weight="500">{{ profiles[hoveredLtv]?.profile_name | slice:0:18
+                }}</text>
+              <text x="150" y="154" text-anchor="middle" [attr.fill]="getColor(hoveredLtv)" font-size="26"
+                font-family="'Syne', sans-serif" font-weight="700">{{ getHoveredLtvPercent().toFixed(1) }}%</text>
+              <text x="150" y="171" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                font-family="'DM Sans', sans-serif">{{ formatCurrency(getHoveredLtvValue()) }}</text>
+            </ng-container>
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item" *ngFor="let p of profiles; let i = index" [class.legend-active]="hoveredLtv === i"
+              [class.legend-dimmed]="hoveredLtv !== null && hoveredLtv !== i" (mouseenter)="hoveredLtv = i"
+              (mouseleave)="hoveredLtv = null" (click)="goToDetails(p.cluster_id)">
+              <span class="legend-dot" [style.background]="getColor(i)"></span>
+              <div class="legend-text">
+                <div class="legend-name">{{ p.profile_name }}</div>
+                <div class="legend-sub">{{ formatCurrency(p.ltv_12m_base || 0) }}</div>
+              </div>
+              <span class="legend-pct" [style.color]="getColor(i)">{{ getLtvPercent(p).toFixed(1) }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tableau détaillé -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="bi bi-table"></i> Détail complet des profils
+        </div>
+        <div class="section-count">
+          <i class="bi bi-layers"></i> {{ totalProfiles }} profils
+        </div>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Profil</th>
+            <th>Clients</th>
+            <th>%</th>
+            <th>Catégorie dominante</th>
+            <th>Activité</th>
+            <th>Churn 30j</th>
+            <th>ARPU (TND)</th>
+            <th>LTV 12m (TND)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of profiles; let i = index" [class.row-highlight]="hoveredCount === i || hoveredLtv === i"
+            (mouseenter)="hoveredCount = i; hoveredLtv = i" (mouseleave)="hoveredCount = null; hoveredLtv = null">
+            <td><span class="rank-badge" [style.background]="getColor(i)">{{ i+1 }}</span></td>
+            <td>
+              <div class="provider-cell">
+                <span class="provider-dot" [style.background]="getColor(i)"></span>
+                <span class="provider-name">{{ p.profile_name }}</span>
+              </div>
+            </td>
+            <td>{{ formatNumber(p.n_clients) }}</td>
+            <td>
+              <div class="bar-cell">
+                <div class="bar-track">
+                  <div class="bar-fill" [style.width.%]="p.pct_clients" [style.background]="getColor(i)"></div>
+                </div><span class="bar-pct">{{ p.pct_clients }}%</span>
+              </div>
+            </td>
+            <td>{{ p.dominant_category || '-' }}</td>
+            <td>{{ p.activity_level || '-' }}</td>
+            <td>{{ (p.churn_score_30j || 0) * 100 | number:'1.1-1' }}%</td>
+            <td class="amount-cell">{{ formatCurrency(p.arpu_mensuel || 0) }}</td>
+            <td class="amount-cell">{{ formatCurrency(p.ltv_12m_base || 0) }}</td>
+            <td><button class="detail-btn" (click)="goToDetails(p.cluster_id)"><i class="bi bi-eye"></i> Détail</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty-state" *ngIf="profiles.length === 0">
+        <i class="bi bi-inbox"></i>
+        <span>Aucun profil disponible.</span>
+      </div>
+    </div>
+
+  </div>
+</div>

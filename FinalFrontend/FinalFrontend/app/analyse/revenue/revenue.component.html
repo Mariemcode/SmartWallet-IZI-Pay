@@ -1,0 +1,292 @@
+<div class="breakdown-page">
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+      <button class="btn-back" (click)="goBack()">
+        <i class="bi bi-arrow-left"></i> Retour
+      </button>
+      <div class="breadcrumb">
+        <span class="bc-parent">Analyse Globale</span>
+        <i class="bi bi-chevron-right bc-sep"></i>
+        <span class="bc-current">Revenus par Catégorie</span>
+      </div>
+      <h1>Répartition des <span class="accent">Revenus</span></h1>
+      <p class="subtitle">
+        Taux de réception par catégorie — toutes transactions de type Crédit
+      </p>
+    </div>
+
+    <div class="date-filter">
+      <div class="date-input-group">
+        <label>Du</label>
+        <input type="date" [(ngModel)]="fromDate" />
+      </div>
+      <div class="date-sep">→</div>
+      <div class="date-input-group">
+        <label>Au</label>
+        <input type="date" [(ngModel)]="toDate" />
+      </div>
+      <button class="btn-apply" (click)="load()">
+        <i class="bi bi-funnel-fill"></i> Appliquer
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Loader ─────────────────────────────────────────────────── -->
+  <div class="loader-wrap" *ngIf="loading">
+    <div class="loader-ring"></div>
+    <span>Chargement des catégories…</span>
+  </div>
+
+  <!-- ── Error ──────────────────────────────────────────────────── -->
+  <div class="error-banner" *ngIf="error && !loading">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    Impossible de charger les données.
+  </div>
+
+  <!-- ── Contenu ────────────────────────────────────────────────── -->
+  <div class="content" *ngIf="!loading && !error && categories.length > 0">
+
+    <!-- ── KPI Totaux ──────────────────────────────────────────── -->
+    <div class="totals-row">
+      <div class="total-card">
+        <div class="total-icon revenue-icon">
+          <i class="bi bi-arrow-down-circle-fill"></i>
+        </div>
+        <div>
+          <div class="total-label">Total Revenus</div>
+          <div class="total-value">{{ formatAmount(getTotalAmount()) }}</div>
+        </div>
+      </div>
+      <div class="total-card">
+        <div class="total-icon tx-icon">
+          <i class="bi bi-list-ul"></i>
+        </div>
+        <div>
+          <div class="total-label">Nb Transactions</div>
+          <div class="total-value">{{ formatCount(getTotalCount()) }}</div>
+        </div>
+      </div>
+      <div class="total-card">
+        <div class="total-icon cat-icon">
+          <i class="bi bi-grid-1x2-fill"></i>
+        </div>
+        <div>
+          <div class="total-label">Catégories actives</div>
+          <div class="total-value">{{ categories.length }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Ligne : Tableau + Donut ─────────────────────────────── -->
+    <div class="table-donut-row">
+
+      <!-- ── Tableau ──────────────────────────────────────────── -->
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">
+            <i class="bi bi-table"></i> Détail par Catégorie
+          </span>
+          <span class="table-sub">Trié par montant décroissant</span>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Catégorie</th>
+                <th>Montant Total</th>
+                <th>Nb Transactions</th>
+                <th>Ticket Moyen</th>
+                <th>% Montant</th>
+                <th>% Transactions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let cat of categories; let i = index" [class.row-hovered]="hoveredIndex === i"
+                (mouseenter)="hoveredIndex = i" (mouseleave)="hoveredIndex = null" (click)="goToSubCategory(cat)"
+                style="cursor: pointer;">
+                <!-- ... colonnes identiques + colonne expand ... -->
+                <td class="expand-cell">
+                  <i class="bi bi-chevron-right expand-icon"></i>
+                </td>
+                <td class="rank-cell">
+                  <span class="rank" [class.rank-top]="i < 3">{{ i + 1 }}</span>
+                </td>
+
+                <td class="cat-cell">
+                  <span class="cat-icon-wrap" [style.background]="getColor(cat.category) + '18'"
+                    [style.color]="getColor(cat.category)">
+                    <i class="bi" [ngClass]="getIcon(cat.category)"></i>
+                  </span>
+                  <span class="cat-name">{{ cat.category }}</span>
+                </td>
+
+                <td class="amount-cell">
+                  {{ formatAmount(cat.totalAmount) }}
+                </td>
+
+                <td class="count-cell">
+                  <i class="bi bi-arrow-left-right count-icon"></i>
+                  {{ formatCount(cat.totalCount) }}
+                </td>
+
+                <td class="avg-cell">
+                  {{ formatAmount(cat.averageAmount) }}
+                </td>
+
+                <td class="pct-cell">
+                  <span class="pct-badge" [style.background]="getColor(cat.category) + '18'"
+                    [style.color]="getColor(cat.category)">
+                    {{ cat.percentAmount }}%
+                  </span>
+                </td>
+
+                <td class="pct-cell">
+                  <span class="pct-badge pct-neutral">
+                    {{ cat.percentCount }}%
+                  </span>
+                </td>
+
+              </tr>
+            </tbody>
+
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="2"><strong>TOTAL</strong></td>
+                <td><strong>{{ formatAmount(getTotalAmount()) }}</strong></td>
+                <td><strong>{{ formatCount(getTotalCount()) }}</strong></td>
+                <td>—</td>
+                <td><strong>100%</strong></td>
+                <td><strong>100%</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Donut Chart ───────────────────────────────────────── -->
+      <div class="donut-card">
+        <div class="donut-card-header">
+          <span class="table-title">
+            <i class="bi bi-pie-chart-fill"></i> % par Catégorie
+          </span>
+          <span class="table-sub">Basé sur les montants</span>
+        </div>
+
+        <div class="donut-inner">
+          <svg viewBox="0 0 300 300" class="donut-svg">
+
+            <circle cx="150" cy="150" r="110" fill="none" stroke="#f0f4fa" stroke-width="44" />
+
+            <ng-container *ngFor="let cat of categories; let i = index">
+              <path [attr.d]="getArc(i)" fill="none" [attr.stroke]="getColor(cat.category)" stroke-width="44"
+                stroke-linecap="butt" class="arc-segment"
+                [class.arc-dimmed]="hoveredIndex !== null && hoveredIndex !== i" [class.arc-active]="hoveredIndex === i"
+                (mouseenter)="hoveredIndex = i" (mouseleave)="hoveredIndex = null" />
+            </ng-container>
+
+            <!-- Séparateurs blancs -->
+            <ng-container *ngFor="let cat of categories; let i = index">
+              <path [attr.d]="getArc(i)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="butt"
+                pointer-events="none" />
+            </ng-container>
+
+            <circle cx="150" cy="150" r="88" fill="#ffffff" />
+
+            <!-- Centre normal -->
+            <ng-container *ngIf="hoveredIndex === null">
+              <text x="150" y="138" text-anchor="middle" fill="#6b7fa3" font-size="11"
+                font-family="'DM Sans', sans-serif" font-weight="500">REVENUS</text>
+              <text x="150" y="158" text-anchor="middle" fill="#1a2740" font-size="12" font-family="'Syne', sans-serif"
+                font-weight="700">
+                {{ formatCount(getTotalCount()) }}
+              </text>
+              <text x="150" y="173" text-anchor="middle" fill="#6b7fa3" font-size="10"
+                font-family="'DM Sans', sans-serif">
+                transactions
+              </text>
+            </ng-container>
+
+            <!-- Centre hover -->
+            <ng-container *ngIf="hoveredIndex !== null">
+              <text x="150" y="130" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                font-family="'DM Sans', sans-serif" font-weight="500">
+                {{ categories[hoveredIndex].category | slice:0:18 }}
+              </text>
+              <text x="150" y="156" text-anchor="middle" [attr.fill]="getColor(categories[hoveredIndex].category)"
+                font-size="26" font-family="'Syne', sans-serif" font-weight="700">
+                {{ categories[hoveredIndex].percentAmount }}%
+              </text>
+              <text x="150" y="173" text-anchor="middle" fill="#6b7fa3" font-size="9.5"
+                font-family="'DM Sans', sans-serif">
+                {{ formatAmount(categories[hoveredIndex].totalAmount) }}
+              </text>
+            </ng-container>
+
+          </svg>
+
+          <!-- Légende -->
+          <div class="donut-legend">
+            <div class="legend-item" *ngFor="let cat of categories; let i = index"
+              [class.legend-active]="hoveredIndex === i"
+              [class.legend-dimmed]="hoveredIndex !== null && hoveredIndex !== i" (mouseenter)="hoveredIndex = i"
+              (mouseleave)="hoveredIndex = null">
+              <span class="legend-dot" [style.background]="getColor(cat.category)"></span>
+              <div class="legend-body">
+                <span class="legend-name">{{ cat.category }}</span>
+                <span class="legend-pct" [style.color]="getColor(cat.category)">
+                  {{ cat.percentAmount }}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Vue Graphique barres ────────────────────────────────── -->
+    <div class="bars-card">
+      <div class="table-header">
+        <span class="table-title">
+          <i class="bi bi-bar-chart-fill"></i> Vue Graphique
+        </span>
+      </div>
+      <div class="bars-list">
+        <div class="bar-row" *ngFor="let cat of categories; let i = index" (click)="goToSubCategory(cat)"
+          style="cursor: pointer;">
+          <div class="bar-row-left">
+            <span class="bar-cat-icon" [style.background]="getColor(cat.category) + '18'"
+              [style.color]="getColor(cat.category)">
+              <i class="bi" [ngClass]="getIcon(cat.category)"></i>
+            </span>
+            <span class="bar-cat-name">{{ cat.category }}</span>
+          </div>
+          <div class="bar-row-track">
+            <div class="bar-row-fill" [style.width.%]="cat.percentAmount" [style.background]="getColor(cat.category)">
+            </div>
+          </div>
+          <div class="bar-row-right">
+            <span class="bar-row-pct" [style.color]="getColor(cat.category)">
+              {{ cat.percentAmount }}%
+            </span>
+            <span class="bar-row-amount">
+              {{ formatAmount(cat.totalAmount) }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Empty state ────────────────────────────────────────────── -->
+  <div class="empty-state" *ngIf="!loading && !error && categories.length === 0">
+    <i class="bi bi-inbox"></i>
+    <p>Aucun revenu trouvé pour cette période.</p>
+  </div>
+
+</div>
